@@ -138,7 +138,7 @@ public sealed class ConsoleUi
 
         var hasSeen = _onboardingStateRepository.GetHasSeenOnboarding();
         var cushion = _cushionService.FindCushionByName()
-            ?? _addTransactionHandler.FindCushionCardLoose()
+            ?? _addTransactionHandler.FindFirstOrDefaultCushionCard()
             ?? _cushionService.FindCushionByContains();
         if (cushion != null)
         {
@@ -349,7 +349,7 @@ public sealed class ConsoleUi
         }
 
         var cushion = _cushionService.FindCushionByName()
-            ?? _addTransactionHandler.FindCushionCardLoose()
+            ?? _addTransactionHandler.FindFirstOrDefaultCushionCard()
             ?? _cushionService.FindCushionByContains();
 
         if (cushion == null)
