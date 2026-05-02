@@ -12,8 +12,19 @@ public sealed class AddIncomeHandler
         _addTransactionHandler = addTransactionHandler;
     }
 
-    public Transaction Handle(decimal amount, string category, int? cardId, DateOnly? date, string? note)
+    public Transaction Handle(
+        decimal amount, 
+        string category, 
+        int? cardId, 
+        DateOnly? date, 
+        string? note)
     {
-        return _addTransactionHandler.Handle(TransactionType.Income, amount, category, cardId, date, note);
+        return _addTransactionHandler.Handle(
+            TransactionType.Income, 
+            amount, 
+            category, 
+            cardId, 
+            date, 
+            note);
     }
 }
