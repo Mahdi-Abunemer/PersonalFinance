@@ -9,7 +9,10 @@ public sealed class SetDailyLimitHandler
     private readonly ICardRepository _cardRepository;
     private readonly IClock _clock;
 
-    public SetDailyLimitHandler(ILimitRepository limitRepository, ICardRepository cardRepository, IClock clock)
+    public SetDailyLimitHandler(
+        ILimitRepository limitRepository, 
+        ICardRepository cardRepository, 
+        IClock clock)
     {
         _limitRepository = limitRepository;
         _cardRepository = cardRepository;
