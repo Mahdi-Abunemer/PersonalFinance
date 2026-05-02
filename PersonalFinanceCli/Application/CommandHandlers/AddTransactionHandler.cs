@@ -78,7 +78,7 @@ public sealed class AddTransactionHandler
         if (transactionType == TransactionType.Expense)
         {
             // Expense use the stored default card over the logical default card.
-            var defaultCardByStore = _cardRepository.GetDefaultByDataStore();
+            var defaultCardByStore = _cardRepository.GetDefaultCardByDataStore();
             if (defaultCardByStore != null)
             {
                 return defaultCardByStore.Id;

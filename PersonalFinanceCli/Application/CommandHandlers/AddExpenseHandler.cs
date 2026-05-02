@@ -51,7 +51,7 @@ public sealed class AddExpenseHandler
         }
         else
         {
-            var defaultCardByStore = _cardRepository.GetDefaultByDataStore();
+            var defaultCardByStore = _cardRepository.GetDefaultCardByDataStore();
             if (defaultCardByStore != null)
             {
                 resolvedCardId = defaultCardByStore.Id;
