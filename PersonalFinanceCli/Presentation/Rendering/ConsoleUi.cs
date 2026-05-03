@@ -136,7 +136,7 @@ public sealed class ConsoleUi
 
         _onboardingChecked = true;
 
-        var hasSeen = _onboardingStateRepository.GetHasSeenOnboarding();
+        var hasSeen = _onboardingStateRepository.HasSeenOnboarding();
         var cushion = _cushionService.FindCushionByName()
             ?? _addTransactionHandler.FindFirstOrDefaultCushionCard()
             ?? _cushionService.FindCushionByContains();
