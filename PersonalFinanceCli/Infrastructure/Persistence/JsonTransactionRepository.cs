@@ -19,10 +19,14 @@ public sealed class JsonTransactionRepository : ITransactionRepository
 
     public Transaction Add(Transaction transaction)
     {
-        var data = _store.Load();
-        transaction.Id = data.Transactions.Count == 0 ? 1 : data.Transactions.Max(t => t.Id) + 1;
-        data.Transactions.Add(transaction);
-        _store.Save(data);
+        var dataStore = _store.Load();
+
+        transaction.Id = dataStore.Transactions.Count == 0 
+            ? 1
+            : dataStore.Transactions.Max(t => t.Id) + 1;
+
+        dataStore.Transactions.Add(transaction);
+        _store.Save(dataStore);
         return transaction;
     }
 }
