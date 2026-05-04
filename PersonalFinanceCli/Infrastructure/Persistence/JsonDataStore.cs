@@ -5,9 +5,7 @@ namespace PersonalFinanceCli.Infrastructure.Persistence;
 
 public sealed class JsonDataStore
 {
-    // path to file (might be directory in edge situations)
     private readonly string _filePath;
-    // serializer options define serialization options
     private readonly JsonSerializerOptions _options;
 
     public JsonDataStore(string filePath)
@@ -22,68 +20,46 @@ public sealed class JsonDataStore
 
     public DataFile Load()
     {
-        // if file is missing we load by creating it first and then loading empty from memory
         if (!File.Exists(_filePath))
         {
-            var empty = new DataFile();
-            Save(empty);
-            return empty;
+            var emptyFile = new DataFile();
+            Save(emptyFile);
+            return emptyFile;
         }
 
-        // read json text from file system as text
-        var json = File.ReadAllText(_filePath);
-        if (string.IsNullOrWhiteSpace(json))
+        var jsonText = File.ReadAllText(_filePath);
+        if (string.IsNullOrWhiteSpace(jsonText))
         {
-            var empty = new DataFile();
-            Save(empty);
-            return empty;
+            var emptyFile = new DataFile();
+            Save(emptyFile);
+            return emptyFile;
         }
 
         // deserialize and then normalize collections because null is not list
-        var result = JsonSerializer.Deserialize<DataFile>(json, _options);
-        if (result == null)
+        var dataFileResult = JsonSerializer.Deserialize<DataFile>(jsonText, _options);
+        if (dataFileResult == null)
         {
-            var empty = new DataFile();
-            Save(empty);
-            return empty;
+            var emptyFile = new DataFile();
+            Save(emptyFile);
+            return emptyFile;
         }
 
-        result.Cards ??= new List<Card>();
-        result.Transactions ??= new List<Transaction>();
-        result.DailyLimits ??= new List<DailyLimit>();
+        dataFileResult.Cards ??= new List<Card>();
+        dataFileResult.Transactions ??= new List<Transaction>();
+        dataFileResult.DailyLimits ??= new List<DailyLimit>();
 
-        return result;
+        return dataFileResult;
     }
 
     public void Save(DataFile data)
     {
-        // create directory if path has directory, otherwise skip to avoid creating file
-        var dir = Path.GetDirectoryName(_filePath);
-        if (!string.IsNullOrWhiteSpace(dir))
+        var directory = Path.GetDirectoryName(_filePath);
+        if (!string.IsNullOrWhiteSpace(directory))
         {
-            Directory.CreateDirectory(dir);
+            Directory.CreateDirectory(directory);
         }
 
-        // writing JSON string to file replaces existing content with new old content
-        var json = JsonSerializer.Serialize(data, _options);
-        File.WriteAllText(_filePath, json);
+        var jsonText = JsonSerializer.Serialize(data, _options);
+        File.WriteAllText(_filePath, jsonText);
     }
-}
-
-public sealed class DataFile
-{
-    // cards are cards
-    public List<Card> Cards { get; set; } = new();
-
-    // transactions are card operations
-    public List<Transaction> Transactions { get; set; } = new();
-
-    // limits for day/week (currently day)
-    public List<DailyLimit> DailyLimits { get; set; } = new();
-
-    public DateOnly? LastCushionDeclinedDate { get; set; }
-
-    public bool HasSeenOnboarding { get; set; }
-
-    public Guid? DefaultCardId { get; set; }
 }

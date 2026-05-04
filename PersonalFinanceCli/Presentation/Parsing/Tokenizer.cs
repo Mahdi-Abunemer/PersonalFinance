@@ -7,39 +7,40 @@ public static class Tokenizer
     public static IReadOnlyList<string> Tokenize(string commandLine)
     {
         var result = new List<string>();
+
         if (string.IsNullOrWhiteSpace(commandLine))
         {
             return result;
         }
 
-        var sb = new StringBuilder();
-        var inQuotes = false;
+        var stringBuilder = new StringBuilder();
+        var isInQuotes = false;
 
-        foreach (var ch in commandLine)
+        foreach (var character in commandLine)
         {
-            if (ch == '"')
+            if (character == '"')
             {
-                inQuotes = !inQuotes;
+                isInQuotes = !isInQuotes;
                 continue;
             }
 
-            if (char.IsWhiteSpace(ch) && !inQuotes)
+            if (char.IsWhiteSpace(character) && !isInQuotes)
             {
-                if (sb.Length > 0)
+                if (stringBuilder.Length > 0)
                 {
-                    result.Add(sb.ToString());
-                    sb.Clear();
+                    result.Add(stringBuilder.ToString());
+                    stringBuilder.Clear();
                 }
             }
             else
             {
-                sb.Append(ch);
+                stringBuilder.Append(character);
             }
         }
 
-        if (sb.Length > 0)
+        if (stringBuilder.Length > 0)
         {
-            result.Add(sb.ToString());
+            result.Add(stringBuilder.ToString());
         }
 
         return result;

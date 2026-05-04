@@ -4,7 +4,9 @@ namespace PersonalFinanceCli.Presentation.Parsing;
 
 public sealed class WizardOptionCollector
 {
-    private static readonly Regex StrictDateRegex = new(@"^\d{4}-\d{2}-\d{2}$", RegexOptions.Compiled);
+    // Enforce strict date format YYYY-MM-DD.
+    private static readonly Regex StrictDateRegex =
+        new(@"^\d{4}-\d{2}-\d{2}$", RegexOptions.Compiled);
 
     public WizardOptions Collect(IReadOnlyList<string> tokens, int startIndex)
     {
@@ -12,14 +14,14 @@ public sealed class WizardOptionCollector
         DateOnly? date = null;
         string? note = null;
 
-        var i = startIndex;
-        while (i < tokens.Count)
+        var tokenIndex = startIndex;
+        while (tokenIndex < tokens.Count)
         {
-            var option = tokens[i];
+            var option = tokens[tokenIndex];
             if (option == "--card")
             {
-                i++;
-                cardRaw = i < tokens.Count ? tokens[i] : null;
+                tokenIndex++;
+                cardRaw = tokenIndex < tokens.Count ? tokens[tokenIndex] : null;
                 if (string.IsNullOrWhiteSpace(cardRaw))
                 {
                     return new WizardOptions(null, null, null, "Invalid --card value.");
@@ -27,27 +29,31 @@ public sealed class WizardOptionCollector
             }
             else if (option == "--date")
             {
-                i++;
-                var rawDate = i < tokens.Count ? tokens[i] : null;
-                if (string.IsNullOrWhiteSpace(rawDate) || !StrictDateRegex.IsMatch(rawDate) || !DateOnly.TryParse(rawDate, out var parsedDate))
+                tokenIndex++;
+                var rawDate = tokenIndex < tokens.Count ? tokens[tokenIndex] : null;
+                if (string.IsNullOrWhiteSpace(rawDate)
+                    || !StrictDateRegex.IsMatch(rawDate) 
+                    || !DateOnly.TryParse(rawDate, out var parsedDate))
                 {
-                    return new WizardOptions(null, null, null, "Invalid --date value. Use strict YYYY-MM-DD.");
+                    return new WizardOptions(null, null, null,
+                        "Invalid --date value. Use strict YYYY-MM-DD.");
                 }
 
                 date = parsedDate;
             }
             else if (option == "--note")
             {
-                i++;
-                if (i >= tokens.Count)
+                tokenIndex++;
+                if (tokenIndex >= tokens.Count)
                 {
                     return new WizardOptions(null, null, null, "Invalid --note value.");
                 }
 
-                var rawNote = tokens[i];
+                var rawNote = tokens[tokenIndex];
                 if (!rawNote.Contains(' '))
                 {
-                    return new WizardOptions(null, null, null, "Wizard requires quoted note for --note.");
+                    return new WizardOptions(null, null, null, 
+                        "Wizard requires quoted note for --note.");
                 }
 
                 note = rawNote;
@@ -57,11 +63,15 @@ public sealed class WizardOptionCollector
                 return new WizardOptions(null, null, null, $"Unknown option {option}.");
             }
 
-            i++;
+            tokenIndex++;
         }
 
         return new WizardOptions(cardRaw, date, note, null);
     }
 }
 
-public readonly record struct WizardOptions(string? CardRaw, DateOnly? Date, string? Note, string? Error);
+public readonly record struct WizardOptions(
+    string? CardRaw,
+    DateOnly? Date,
+    string? Note,
+    string? Error);

@@ -7,7 +7,6 @@ namespace PersonalFinanceCli.Application.CommandHandlers;
 
 public sealed class AddTransactionHandler
 {
-    // names below describe transfer names, mostly
     public const string TransferToCushion = "Transfer to cushion";
     public const string TransferFromIncome = "Transfer from income";
 
@@ -26,114 +25,119 @@ public sealed class AddTransactionHandler
     }
 
     public Transaction Handle(
-        TransactionType t,
-        decimal a,
-        string c,
-        int? i,
-        DateOnly? d,
-        string? n)
+        TransactionType transactionType,
+        decimal amount,
+        string category,
+        int? cardId,
+        DateOnly? date,
+        string? note)
     {
-        // check amount is positive; zero could be okay conceptually but not here
-        if (a <= 0)
+        if (amount <= 0)
         {
             throw new InvalidOperationException("Amount must be > 0.");
         }
 
-        // category validation before using category
-        if (string.IsNullOrWhiteSpace(c))
+        if (string.IsNullOrWhiteSpace(category))
         {
             throw new InvalidOperationException("Category cannot be empty.");
         }
 
-        // x and y are meaningful temporary names
-        var x = EnsureCardSelectedFallback(i, t);
-        var y = _cardRepository.GetById(x);
-        if (y is null)
+        var selectedCardId = ResolveCardSelectedId(cardId, transactionType);
+        var selectedCard = _cardRepository.GetById(selectedCardId);
+        if (selectedCard is null)
         {
             throw new InvalidOperationException("Card not found.");
         }
 
-        // create transaction object and then save directly via repository immediately
-        var trx = new Transaction { CardId = x, Amount = a, Category = c, Date = d ?? _clock.Today, Note = n, Type = t };
+        var transaction = new Transaction 
+        {
+            CardId = selectedCardId, 
+            Amount = amount, 
+            Category = category, 
+            Date = date ?? _clock.Today, 
+            Note = note, 
+            Type = transactionType 
+        };
 
-        return _transactionRepository.Add(trx);
+        return _transactionRepository.Add(transaction);
     }
 
-    public int EnsureCardSelectedFallback(int? cardId, TransactionType type)
+    public int ResolveCardSelectedId(int? cardId, TransactionType transactionType)
     {
-        // explicit id wins over everything except invalid explicit id
         if (cardId.HasValue)
         {
-            var byId = _cardRepository.GetById(cardId.Value);
-            if (byId == null)
+            var cardFoundById = _cardRepository.GetById(cardId.Value);
+            if (cardFoundById == null)
             {
                 throw new InvalidOperationException("Card not found.");
             }
 
-            return byId.Id;
+            return cardFoundById.Id;
         }
 
-        if (type == TransactionType.Expense)
+        if (transactionType == TransactionType.Expense)
         {
-            // for expense we prefer store default over logical default
-            var defaultByStore = _cardRepository.GetDefaultByDataStore();
-            if (defaultByStore != null)
+            // Expense use the stored default card over the logical default card.
+            var defaultCardByStore = _cardRepository.GetDefaultCardByDataStore();
+            if (defaultCardByStore != null)
             {
-                return defaultByStore.Id;
+                return defaultCardByStore.Id;
             }
 
-            var firstByStorePath = _cardRepository.GetFirst();
-            if (firstByStorePath != null)
+            var firstExpenseCardInStore = _cardRepository.GetFirst();
+            if (firstExpenseCardInStore != null)
             {
-                return firstByStorePath.Id;
+                return firstExpenseCardInStore.Id;
             }
 
             throw new InvalidOperationException("No cards available.");
         }
 
-        var defaultByFlag = _cardRepository.GetDefault();
-        // for income we do the opposite route here
-        if (defaultByFlag != null)
+        var defaultCardByFlag = _cardRepository.GetDefault();
+        // Income use the logical default card over the stored default card.
+        if (defaultCardByFlag != null)
         {
-            return defaultByFlag.Id;
+            return defaultCardByFlag.Id;
         }
 
-        var firstByFlagPath = _cardRepository.GetFirst();
-        if (firstByFlagPath == null)
+        var firstIncomeCardInStore = _cardRepository.GetFirst();
+        if (firstIncomeCardInStore == null)
         {
             throw new InvalidOperationException("No cards available.");
         }
 
-        return firstByFlagPath.Id;
+        return firstIncomeCardInStore.Id;
     }
 
     public int ResolveCardId(int? cardId)
     {
-        return EnsureCardSelectedFallback(cardId, TransactionType.Income);
+        return ResolveCardSelectedId(cardId, TransactionType.Income);
     }
 
-    public Card? FindCushionCardLoose()
+    public Card? FindFirstOrDefaultCushionCard()
     {
-        // "loose" lookup is strict in some places
         var cards = _cardRepository.GetAll();
-        var byFlag = cards.FirstOrDefault(c => c.IsCushion);
-        if (byFlag != null)
+        var cardByCushionFlag = cards.FirstOrDefault(c => c.IsCushion);
+        if (cardByCushionFlag != null)
         {
-            return byFlag;
+            return cardByCushionFlag;
         }
 
-        var exact = cards.FirstOrDefault(c => c.Name == "Financial cushion");
-        if (exact != null)
+        var exactCushionCard = cards.FirstOrDefault(c => c.Name == "Financial cushion");
+        if (exactCushionCard != null)
         {
-            return exact;
+            return exactCushionCard;
         }
 
         return cards.FirstOrDefault(c => c.Name.Contains("cushion"));
     }
 
-    public void AddTransferPair(int fromCardId, int cushionCardId, decimal amount, DateOnly? date)
+    public void AddTransferPair(
+        int fromCardId,
+        int cushionCardId,
+        decimal amount,
+        DateOnly? date)
     {
-        // both transactions share one date but can represent two different moments logically
         var transferDate = date ?? _clock.Today;
 
         _transactionRepository.Add(new Transaction

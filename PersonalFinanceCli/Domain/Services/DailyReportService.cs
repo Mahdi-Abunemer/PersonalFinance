@@ -27,34 +27,39 @@ public sealed class DailyReportService
             ?? cards.FirstOrDefault()?.Currency
             ?? Currency.RUB;
 
-        var cardIds = cards.Where(c => c.Currency == currency).Select(c => c.Id).ToHashSet();
+        var cardIds = cards.Where(c => c.Currency == currency)
+            .Select(c => c.Id)
+            .ToHashSet();
+
         var allTransactions = _transactionRepository.GetAll();
 
         decimal income = 0m;
         decimal expense = 0m;
+
         var categoryTotals = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var t in allTransactions)
+        foreach (var transaction in allTransactions)
         {
-            if (!cardIds.Contains(t.CardId) || t.Date != date)
+            if (!cardIds.Contains(transaction.CardId) || transaction.Date != date)
             {
                 continue;
             }
 
-            if (t.Type == TransactionType.Income)
+            if (transaction.Type == TransactionType.Income)
             {
-                income += t.Amount;
+                income += transaction.Amount;
             }
             else
             {
-                expense += t.Amount;
-                if (categoryTotals.ContainsKey(t.Category))
+                expense += transaction.Amount;
+
+                if (categoryTotals.ContainsKey(transaction.Category))
                 {
-                    categoryTotals[t.Category] += t.Amount;
+                    categoryTotals[transaction.Category] += transaction.Amount;
                 }
                 else
                 {
-                    categoryTotals[t.Category] = t.Amount;
+                    categoryTotals[transaction.Category] = transaction.Amount;
                 }
             }
         }
@@ -75,22 +80,35 @@ public sealed class DailyReportService
         foreach (var card in cards)
         {
             decimal balance = card.InitialBalance;
-            foreach (var trx in allTransactions.Where(x => x.CardId == card.Id))
+
+            foreach (var transaction in allTransactions.Where(t => t.CardId == card.Id))
             {
-                if (trx.Type == TransactionType.Income)
+                if (transaction.Type == TransactionType.Income)
                 {
-                    balance += trx.Amount;
+                    balance += transaction.Amount;
                 }
                 else
                 {
-                    balance -= trx.Amount;
+                    balance -= transaction.Amount;
                 }
             }
 
-            balances.Add(new CardBalanceLine(card.Id, card.Name, card.IsDefault, balance, card.Currency));
+            balances.Add(new CardBalanceLine(
+                card.Id,
+                card.Name,
+                card.IsDefault,
+                balance,
+                card.Currency));
         }
 
-        return new DailyReport(date, currency, income, expense, categoryTotals, balances, limit);
+        return new DailyReport(
+            date,
+            currency,
+            income,
+            expense,
+            categoryTotals,
+            balances,
+            limit);
     }
 }
 
@@ -103,4 +121,9 @@ public sealed record DailyReport(
     IReadOnlyList<CardBalanceLine> Cards,
     DailyLimit? Limit);
 
-public sealed record CardBalanceLine(int CardId, string CardName, bool IsDefault, decimal Balance, Currency Currency);
+public sealed record CardBalanceLine(
+    int CardId,
+    string CardName,
+    bool IsDefault,
+    decimal Balance,
+    Currency Currency);

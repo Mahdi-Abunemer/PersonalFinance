@@ -21,7 +21,12 @@ public sealed class AddExpenseHandler
         _clock = clock;
     }
 
-    public Transaction Handle(decimal amount, string category, int? cardId, DateOnly? date, string? note)
+    public Transaction Handle(
+        decimal amount,
+        string category,
+        int? cardId,
+        DateOnly? date,
+        string? note)
     {
         if (amount <= 0)
         {
@@ -36,34 +41,34 @@ public sealed class AddExpenseHandler
         int resolvedCardId;
         if (cardId.HasValue)
         {
-            var byId = _cardRepository.GetById(cardId.Value);
-            if (byId == null)
+            var cardFoundById = _cardRepository.GetById(cardId.Value);
+            if (cardFoundById == null)
             {
                 throw new InvalidOperationException("Card not found.");
             }
 
-            resolvedCardId = byId.Id;
+            resolvedCardId = cardFoundById.Id;
         }
         else
         {
-            var defaultByStore = _cardRepository.GetDefaultByDataStore();
-            if (defaultByStore != null)
+            var defaultCardByStore = _cardRepository.GetDefaultCardByDataStore();
+            if (defaultCardByStore != null)
             {
-                resolvedCardId = defaultByStore.Id;
+                resolvedCardId = defaultCardByStore.Id;
             }
             else
             {
-                var first = _cardRepository.GetFirst();
-                if (first == null)
+                var firstCardInStore = _cardRepository.GetFirst();
+                if (firstCardInStore == null)
                 {
                     throw new InvalidOperationException("No cards available.");
                 }
 
-                resolvedCardId = first.Id;
+                resolvedCardId = firstCardInStore.Id;
             }
         }
 
-        var trx = new Transaction
+        var transaction = new Transaction
         {
             CardId = resolvedCardId,
             Amount = amount,
@@ -73,6 +78,6 @@ public sealed class AddExpenseHandler
             Type = TransactionType.Expense
         };
 
-        return _transactionRepository.Add(trx);
+        return _transactionRepository.Add(transaction);
     }
 }

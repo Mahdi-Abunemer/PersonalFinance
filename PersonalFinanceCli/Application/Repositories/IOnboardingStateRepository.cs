@@ -6,7 +6,7 @@ public interface IOnboardingStateRepository
 
     void SetLastCushionDeclinedDate(DateOnly? date);
 
-    bool GetHasSeenOnboarding();
+    bool HasSeenOnboarding();
 
     void SetHasSeenOnboarding(bool value);
 }
