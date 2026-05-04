@@ -132,7 +132,11 @@ public sealed class AddTransactionHandler
         return cards.FirstOrDefault(c => c.Name.Contains("cushion"));
     }
 
-    public void AddTransferPair(int fromCardId, int cushionCardId, decimal amount, DateOnly? date)
+    public void AddTransferPair(
+        int fromCardId,
+        int cushionCardId,
+        decimal amount,
+        DateOnly? date)
     {
         var transferDate = date ?? _clock.Today;
 

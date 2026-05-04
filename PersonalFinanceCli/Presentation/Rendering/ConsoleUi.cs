@@ -28,7 +28,7 @@ public sealed class ConsoleUi
     private readonly IConsole _console;
     private readonly CushionService _cushionService;
     private readonly WizardOptionCollector _wizardOptionCollector;
-    private bool _onboardingChecked;
+    private bool _isOnboardingChecked;
 
     public ConsoleUi(
         CommandParser parser,
@@ -69,8 +69,8 @@ public sealed class ConsoleUi
     {
         try
         {
-            var command = _parser.Parse(args);
-            ExecuteParsedCommand(command);
+            var parsedCommand = _parser.Parse(args);
+            ExecuteParsedCommand(parsedCommand);
             return 0;
         }
         catch (Exception ex)
@@ -116,8 +116,8 @@ public sealed class ConsoleUi
 
             try
             {
-                var parsed = _parser.Parse(line);
-                ExecuteParsedCommand(parsed);
+                var parsedCommand = _parser.Parse(line);
+                ExecuteParsedCommand(parsedCommand);
             }
             catch (Exception ex)
             {
@@ -129,18 +129,19 @@ public sealed class ConsoleUi
 
     private void EnsureOnboardingOnce()
     {
-        if (_onboardingChecked)
+        if (_isOnboardingChecked)
         {
             return;
         }
 
-        _onboardingChecked = true;
+        _isOnboardingChecked = true;
 
-        var hasSeen = _onboardingStateRepository.HasSeenOnboarding();
-        var cushion = _cushionService.FindCushionByName()
+        var hasSeenOnboarding = _onboardingStateRepository.HasSeenOnboarding();
+
+        var cushionCard = _cushionService.FindCushionByName()
             ?? _addTransactionHandler.FindFirstOrDefaultCushionCard()
             ?? _cushionService.FindCushionByContains();
-        if (cushion != null)
+        if (cushionCard != null)
         {
             _onboardingStateRepository.SetLastCushionDeclinedDate(null);
             _onboardingStateRepository.SetHasSeenOnboarding(true);
@@ -148,7 +149,7 @@ public sealed class ConsoleUi
         }
 
         var cards = _cardRepository.GetAll();
-        if (hasSeen && cards.Count == 0)
+        if (hasSeenOnboarding && cards.Count == 0)
         {
             return;
         }
@@ -180,28 +181,28 @@ public sealed class ConsoleUi
             return false;
         }
 
-        var root = tokens[0].ToLowerInvariant();
+        var commandName = tokens[0].ToLowerInvariant();
         var action = tokens[1].ToLowerInvariant();
 
-        if (root == "card" && action == "add")
+        if (commandName == "card" && action == "add")
         {
             HandleCardAddWizard(tokens);
             return true;
         }
 
-        if (root == "expense" && action == "add")
+        if (commandName == "expense" && action == "add")
         {
             HandleExpenseAddWizard(tokens);
             return true;
         }
 
-        if (root == "income" && action == "add")
+        if (commandName == "income" && action == "add")
         {
             HandleIncomeAddWizard(tokens);
             return true;
         }
 
-        if (root == "limit" && action == "set")
+        if (commandName == "limit" && action == "set")
         {
             HandleLimitSetWizard(tokens);
             return true;
@@ -214,10 +215,12 @@ public sealed class ConsoleUi
     {
         try
         {
-            var name = AskRequiredText(tokens.Count >= 3 ? tokens[2] : null, "Card name?");
+            var cardName = AskRequiredText(tokens.Count >= 3 ? tokens[2] : null, "Card name?");
             var currency = AskCurrency(tokens.Count >= 4 ? tokens[3] : null);
-            var initialBalance = AskOptionalDecimal(tokens.Count >= 5 ? tokens[4] : null, "Initial balance? (enter = 0)");
-            ExecuteParsedCommand(new CardAddCommand(name, currency, initialBalance));
+            var initialBalance = AskOptionalDecimal(
+                tokens.Count >= 5 ? tokens[4] : null,
+                "Initial balance? (enter = 0)");
+            ExecuteParsedCommand(new CardAddCommand(cardName, currency, initialBalance));
         }
         catch (WizardCancelledException)
         {
@@ -238,7 +241,8 @@ public sealed class ConsoleUi
 
             var categoryToken = tokens.Count >= 4 ? tokens[3] : null;
             var optionsIndex = 4;
-            if (categoryToken != null && categoryToken.StartsWith("--", StringComparison.Ordinal))
+            if (categoryToken != null
+                && categoryToken.StartsWith("--", StringComparison.Ordinal))
             {
                 categoryToken = null;
                 optionsIndex = 3;
@@ -253,8 +257,12 @@ public sealed class ConsoleUi
             }
 
             var category = AskRequiredText(categoryToken, "Category?");
-            var cardId = ResolveCardWizard(options.CardRaw, "Card? (enter to use default, id or name)");
-            var date = options.Date ?? AskOptionalDate(null, "Date? (YYYY-MM-DD, enter = today)");
+            var cardId = ResolveCardWizard(
+                options.CardRaw, 
+                "Card? (enter to use default, id or name)");
+            var date = options.Date ?? AskOptionalDate(
+                null,
+                "Date? (YYYY-MM-DD, enter = today)");
 
             _addExpenseHandler.Handle(amount, category, cardId, date, options.Note);
 
@@ -280,7 +288,8 @@ public sealed class ConsoleUi
 
             var categoryToken = tokens.Count >= 4 ? tokens[3] : null;
             var optionsIndex = 4;
-            if (categoryToken != null && categoryToken.StartsWith("--", StringComparison.Ordinal))
+            if (categoryToken != null
+                && categoryToken.StartsWith("--", StringComparison.Ordinal))
             {
                 categoryToken = null;
                 optionsIndex = 3;
@@ -295,8 +304,12 @@ public sealed class ConsoleUi
             }
 
             var category = AskRequiredText(categoryToken, "Category?");
-            var cardId = ResolveCardWizard(options.CardRaw, "Card? (enter to use default, id or name)");
-            var date = options.Date ?? AskOptionalDate(null, "Date? (YYYY-MM-DD, enter = today)");
+            var cardId = ResolveCardWizard(
+                options.CardRaw,
+                "Card? (enter to use default, id or name)");
+            var date = options.Date ?? AskOptionalDate(
+                null,
+                "Date? (YYYY-MM-DD, enter = today)");
 
             var sourceCardId = _addTransactionHandler.ResolveCardId(cardId);
             _addIncomeHandler.Handle(amount, category, sourceCardId, date, options.Note);
@@ -321,7 +334,9 @@ public sealed class ConsoleUi
     {
         try
         {
-            var amount = AskRequiredDecimal(tokens.Count >= 3 ? tokens[2] : null, "Daily limit amount?");
+            var amount = AskRequiredDecimal(
+                tokens.Count >= 3 ? tokens[2] : null,
+                "Daily limit amount?");
             ExecuteParsedCommand(new LimitSetCommand(amount));
         }
         catch (WizardCancelledException)
@@ -335,7 +350,11 @@ public sealed class ConsoleUi
         }
     }
 
-    private void HandleOptionalCushionTransfer(decimal incomeAmount, string category, int sourceCardId, DateOnly? date)
+    private void HandleOptionalCushionTransfer(
+        decimal incomeAmount,
+        string category,
+        int sourceCardId,
+        DateOnly? date)
     {
         if (!AskYesNoDefaultYes("Transfer part of income to 'Financial cushion'? (y/n)"))
         {
@@ -348,15 +367,15 @@ public sealed class ConsoleUi
             return;
         }
 
-        var cushion = _cushionService.FindCushionByName()
+        var cushionCard = _cushionService.FindCushionByName()
             ?? _addTransactionHandler.FindFirstOrDefaultCushionCard()
             ?? _cushionService.FindCushionByContains();
 
-        if (cushion == null)
+        if (cushionCard == null)
         {
             if (AskYesNo("Cushion account not found. Create now? (y/n)"))
             {
-                cushion = _cushionService.CreateCushion(sourceCard.Currency);
+                cushionCard = _cushionService.CreateCushion(sourceCard.Currency);
             }
             else
             {
@@ -364,10 +383,12 @@ public sealed class ConsoleUi
             }
         }
 
-        if (sourceCard.Currency != cushion.Currency)
+        if (sourceCard.Currency != cushionCard.Currency)
         {
-            var canceledMismatch = false;
-            if (!AskYesNoWithCancel("Currencies do not match. Transfer anyway? (y/n)", out canceledMismatch))
+            var hasCanceledMismatch = false;
+            if (!AskYesNoWithCancel(
+                "Currencies do not match. Transfer anyway? (y/n)",
+                out hasCanceledMismatch))
             {
                 return;
             }
@@ -385,29 +406,36 @@ public sealed class ConsoleUi
             return;
         }
 
-        _addTransactionHandler.AddTransferPair(sourceCardId, cushion.Id, transferAmount.Value, date);
+        _addTransactionHandler.AddTransferPair(
+            sourceCardId,
+            cushionCard.Id,
+            transferAmount.Value,
+            date);
     }
 
     private decimal? AskTransferAmount(decimal incomeAmount, string category)
     {
         while (true)
         {
-            _console.Write("How much to transfer? (enter = default / percent like 25% or absolute amount) ");
-            var raw = _console.ReadLine();
-            if (raw == null || raw.Equals("cancel", StringComparison.OrdinalIgnoreCase))
+            _console.Write("How much to transfer? " +
+                "(enter = default / percent like 25% or absolute amount) ");
+
+            var transferAmountInput = _console.ReadLine();
+            if (transferAmountInput == null
+                || transferAmountInput.Equals("cancel", StringComparison.OrdinalIgnoreCase))
             {
                 return null;
             }
 
             decimal amount;
-            if (string.IsNullOrWhiteSpace(raw))
+            if (string.IsNullOrWhiteSpace(transferAmountInput))
             {
                 amount = _cushionService.DefaultTransferAmount(incomeAmount, category);
             }
-            else if (raw.TrimEnd().EndsWith("%", StringComparison.Ordinal))
+            else if (transferAmountInput.TrimEnd().EndsWith("%", StringComparison.Ordinal))
             {
-                var pctRaw = raw.Trim()[..^1];
-                if (!decimal.TryParse(pctRaw, out var percent))
+                var precentInputRaw = transferAmountInput.Trim()[..^1];
+                if (!decimal.TryParse(precentInputRaw, out var percent))
                 {
                     _console.WriteLine("Error: Invalid transfer amount.");
                     continue;
@@ -417,7 +445,7 @@ public sealed class ConsoleUi
             }
             else
             {
-                if (!decimal.TryParse(raw.Trim(), out var explicitAmount))
+                if (!decimal.TryParse(transferAmountInput.Trim(), out var explicitAmount))
                 {
                     _console.WriteLine("Error: Invalid transfer amount.");
                     continue;
@@ -428,7 +456,8 @@ public sealed class ConsoleUi
 
             if (amount <= 0m || amount > incomeAmount)
             {
-                _console.WriteLine($"Error: Transfer amount must be > 0 and <= income ({UiMoneyFormatter.FormatMoneyShort(incomeAmount)} max).");
+                _console.WriteLine($"Error: Transfer amount must be > 0 and <= income " +
+                    $"({UiMoneyFormatter.FormatMoneyShort(incomeAmount)} max).");
                 continue;
             }
 
@@ -441,19 +470,22 @@ public sealed class ConsoleUi
         while (true)
         {
             _console.Write($"{prompt} ");
-            var raw = _console.ReadLine();
-            if (raw == null)
+
+            var rawAnswer = _console.ReadLine();
+            if (rawAnswer == null)
             {
                 return false;
             }
 
-            var value = raw.Trim();
-            if (value.Equals("y", StringComparison.OrdinalIgnoreCase) || value.Equals("yes", StringComparison.OrdinalIgnoreCase))
+            var normalizedAnswer = rawAnswer.Trim();
+            if (normalizedAnswer.Equals("y", StringComparison.OrdinalIgnoreCase)
+                || normalizedAnswer.Equals("yes", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
 
-            if (value.Equals("n", StringComparison.OrdinalIgnoreCase) || value.Equals("no", StringComparison.OrdinalIgnoreCase))
+            if (normalizedAnswer.Equals("n", StringComparison.OrdinalIgnoreCase)
+                || normalizedAnswer.Equals("no", StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }
@@ -467,24 +499,27 @@ public sealed class ConsoleUi
         while (true)
         {
             _console.Write($"{prompt} ");
-            var raw = _console.ReadLine();
-            if (raw == null)
+
+            var rawAnswer = _console.ReadLine();
+            if (rawAnswer == null)
             {
                 return false;
             }
 
-            var value = raw.Trim();
-            if (value.Length == 0)
+            var normalizedAnswer = rawAnswer.Trim();
+            if (normalizedAnswer.Length == 0)
             {
                 return true;
             }
 
-            if (value.Equals("y", StringComparison.OrdinalIgnoreCase) || value.Equals("yes", StringComparison.OrdinalIgnoreCase))
+            if (normalizedAnswer.Equals("y", StringComparison.OrdinalIgnoreCase)
+                || normalizedAnswer.Equals("yes", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
 
-            if (value.Equals("n", StringComparison.OrdinalIgnoreCase) || value.Equals("no", StringComparison.OrdinalIgnoreCase))
+            if (normalizedAnswer.Equals("n", StringComparison.OrdinalIgnoreCase)
+                || normalizedAnswer.Equals("no", StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }
@@ -498,24 +533,27 @@ public sealed class ConsoleUi
         while (true)
         {
             _console.Write($"{prompt} ");
-            var raw = _console.ReadLine();
-            if (raw == null)
+
+            var rawAnswer = _console.ReadLine();
+            if (rawAnswer == null)
             {
                 return false;
             }
 
-            var value = raw.Trim();
-            if (value.Length == 0)
+            var normalizedAnswer = rawAnswer.Trim();
+            if (normalizedAnswer.Length == 0)
             {
                 return false;
             }
 
-            if (value.Equals("y", StringComparison.OrdinalIgnoreCase) || value.Equals("yes", StringComparison.OrdinalIgnoreCase))
+            if (normalizedAnswer.Equals("y", StringComparison.OrdinalIgnoreCase)
+                || normalizedAnswer.Equals("yes", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
 
-            if (value.Equals("n", StringComparison.OrdinalIgnoreCase) || value.Equals("no", StringComparison.OrdinalIgnoreCase))
+            if (normalizedAnswer.Equals("n", StringComparison.OrdinalIgnoreCase)
+                || normalizedAnswer.Equals("no", StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }
@@ -524,36 +562,40 @@ public sealed class ConsoleUi
         }
     }
 
-    private bool AskYesNoWithCancel(string prompt, out bool canceled)
+    private bool AskYesNoWithCancel(string prompt, out bool isCanceled)
     {
-        canceled = false;
+        isCanceled = false;
+
         while (true)
         {
             _console.Write($"{prompt} ");
-            var raw = _console.ReadLine();
-            if (raw == null)
+
+            var rawAnswer = _console.ReadLine();
+            if (rawAnswer == null)
             {
                 return false;
             }
 
-            var value = raw.Trim();
-            if (value.Equals("cancel", StringComparison.OrdinalIgnoreCase))
+            var normalizedAnswer = rawAnswer.Trim();
+            if (normalizedAnswer.Equals("cancel", StringComparison.OrdinalIgnoreCase))
             {
-                canceled = true;
+                isCanceled = true;
                 return false;
             }
 
-            if (value.Length == 0)
+            if (normalizedAnswer.Length == 0)
             {
                 return false;
             }
 
-            if (value.Equals("y", StringComparison.OrdinalIgnoreCase) || value.Equals("yes", StringComparison.OrdinalIgnoreCase))
+            if (normalizedAnswer.Equals("y", StringComparison.OrdinalIgnoreCase)
+                || normalizedAnswer.Equals("yes", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
 
-            if (value.Equals("n", StringComparison.OrdinalIgnoreCase) || value.Equals("no", StringComparison.OrdinalIgnoreCase))
+            if (normalizedAnswer.Equals("n", StringComparison.OrdinalIgnoreCase)
+                || normalizedAnswer.Equals("no", StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }
@@ -562,38 +604,48 @@ public sealed class ConsoleUi
         }
     }
 
-    private void ExecuteParsedCommand(ParsedCommand command)
+    private void ExecuteParsedCommand(ParsedCommand parsedCommand)
     {
-        var stateChanged = false;
+        var isStateChanged = false;
 
-        switch (command)
+        switch (parsedCommand)
         {
             case CardAddCommand add:
                 _addCardHandler.Handle(add.Name, add.Currency, add.InitialBalance);
-                stateChanged = true;
+                isStateChanged = true;
                 break;
             case CardListCommand:
                 PrintCards();
                 break;
             case CardSetDefaultCommand setDefault:
                 _setDefaultCardHandler.Handle(setDefault.CardId);
-                stateChanged = true;
+                isStateChanged = true;
                 break;
-            case TransactionAddCommand trx:
-                if (trx.Type == TransactionType.Income)
+            case TransactionAddCommand transaction:
+                if (transaction.Type == TransactionType.Income)
                 {
-                    _addIncomeHandler.Handle(trx.Amount, trx.Category, trx.CardId, trx.Date, trx.Note);
+                    _addIncomeHandler.Handle(
+                        transaction.Amount,
+                        transaction.Category,
+                        transaction.CardId,
+                        transaction.Date,
+                        transaction.Note);
                 }
                 else
                 {
-                    _addExpenseHandler.Handle(trx.Amount, trx.Category, trx.CardId, trx.Date, trx.Note);
+                    _addExpenseHandler.Handle(
+                        transaction.Amount,
+                        transaction.Category,
+                        transaction.CardId,
+                        transaction.Date,
+                        transaction.Note);
                 }
 
-                stateChanged = true;
+                isStateChanged = true;
                 break;
             case LimitSetCommand setLimit:
                 _setDailyLimitHandler.Handle(setLimit.Amount);
-                stateChanged = true;
+                isStateChanged = true;
                 break;
             case LimitShowCommand:
                 ShowLimit();
@@ -605,7 +657,7 @@ public sealed class ConsoleUi
                 throw new InvalidOperationException("Unknown parsed command.");
         }
 
-        if (stateChanged)
+        if (isStateChanged)
         {
             var dailyReport = _dailyReportService.Generate(_clock.Today);
             _reportPrinter.Print(dailyReport);
@@ -620,8 +672,10 @@ public sealed class ConsoleUi
         _console.WriteLine("  card add \"Name\" <RUB|EUR> [initialBalance]");
         _console.WriteLine("  card list");
         _console.WriteLine("  card set-default <cardId>");
-        _console.WriteLine("  expense add <amount> <category> [--card <id>] [--date YYYY-MM-DD] [--note \"text\"]");
-        _console.WriteLine("  income add <amount> <category> [--card <id>] [--date YYYY-MM-DD] [--note \"text\"]");
+        _console.WriteLine("  expense add <amount> <category> " +
+            "[--card <id>] [--date YYYY-MM-DD] [--note \"text\"]");
+        _console.WriteLine("  income add <amount> <category> " +
+            "[--card <id>] [--date YYYY-MM-DD] [--note \"text\"]");
         _console.WriteLine("  limit set <amount>");
         _console.WriteLine("  limit show");
         _console.WriteLine("  report day [--date YYYY-MM-DD]");
@@ -640,7 +694,8 @@ public sealed class ConsoleUi
         foreach (var card in cards)
         {
             var marker = card.IsDefault ? " (default)" : string.Empty;
-            _console.WriteLine($"  {card.Id}: {card.Name}{marker} [{card.Currency}] {card.InitialBalance:F2}");
+            _console.WriteLine($"  {card.Id}: {card.Name}{marker} " +
+                $"[{card.Currency}] {card.InitialBalance:F2}");
         }
     }
 
@@ -658,199 +713,209 @@ public sealed class ConsoleUi
         var currency = cards.FirstOrDefault(c => c.IsDefault)?.Currency
             ?? cards.FirstOrDefault()?.Currency
             ?? limit.Currency;
+
         _console.WriteLine($"Limit: {limit.Amount:F2} {currency} ({today:yyyy-MM-dd})");
     }
 
     private string AskRequiredText(string? seed, string prompt)
     {
-        var current = seed;
+        var currentAnswer = seed;
         while (true)
         {
-            if (current == null)
+            if (currentAnswer == null)
             {
                 _console.Write($"{prompt} ");
-                current = ReadWizardAnswer();
+                currentAnswer = ReadWizardAnswer();
             }
 
-            if (string.Equals(current, "cancel", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(currentAnswer, "cancel", StringComparison.OrdinalIgnoreCase))
             {
                 throw new WizardCancelledException();
             }
 
-            if (!string.IsNullOrWhiteSpace(current))
+            if (!string.IsNullOrWhiteSpace(currentAnswer))
             {
-                return current;
+                return currentAnswer;
             }
 
             _console.WriteLine("Error: Value is required.");
-            current = null;
+            currentAnswer = null;
         }
     }
 
     private decimal AskRequiredDecimal(string? seed, string prompt)
     {
-        var current = seed;
+        var currentAnswer = seed;
         while (true)
         {
-            if (current == null)
+            if (currentAnswer == null)
             {
                 _console.Write($"{prompt} ");
-                current = ReadWizardAnswer();
+                currentAnswer = ReadWizardAnswer();
             }
 
-            if (string.Equals(current, "cancel", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(currentAnswer, "cancel", StringComparison.OrdinalIgnoreCase))
             {
                 throw new WizardCancelledException();
             }
 
-            if (TryParseFlexibleDecimal(current, out var value))
+            if (TryParseFlexibleDecimal(currentAnswer, out var value))
             {
                 return value;
             }
 
             _console.WriteLine("Error: Invalid decimal.");
-            current = null;
+            currentAnswer = null;
         }
     }
 
     private decimal? AskOptionalDecimal(string? seed, string prompt)
     {
-        var current = seed;
+        var currentAnswer = seed;
         while (true)
         {
-            if (current == null)
+            if (currentAnswer == null)
             {
                 _console.Write($"{prompt} ");
-                current = ReadWizardAnswer();
+                currentAnswer = ReadWizardAnswer();
             }
 
-            if (string.Equals(current, "cancel", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(currentAnswer, "cancel", StringComparison.OrdinalIgnoreCase))
             {
                 throw new WizardCancelledException();
             }
 
-            if (string.IsNullOrWhiteSpace(current))
+            if (string.IsNullOrWhiteSpace(currentAnswer))
             {
                 return null;
             }
 
-            if (TryParseFlexibleDecimal(current, out var value))
+            if (TryParseFlexibleDecimal(currentAnswer, out var value))
             {
                 return value;
             }
 
             _console.WriteLine("Error: Invalid decimal.");
-            current = null;
+            currentAnswer = null;
         }
     }
 
     private DateOnly? AskOptionalDate(string? seed, string prompt)
     {
-        var current = seed;
+        var currentAnswer = seed;
         while (true)
         {
-            if (current == null)
+            if (currentAnswer == null)
             {
                 _console.Write($"{prompt} ");
-                current = ReadWizardAnswer();
+                currentAnswer = ReadWizardAnswer();
             }
 
-            if (string.Equals(current, "cancel", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(currentAnswer, "cancel", StringComparison.OrdinalIgnoreCase))
             {
                 throw new WizardCancelledException();
             }
 
-            if (string.IsNullOrWhiteSpace(current))
+            if (string.IsNullOrWhiteSpace(currentAnswer))
             {
                 return null;
             }
 
-            if (DateOnly.TryParse(current, out var value))
+            if (DateOnly.TryParse(currentAnswer, out var value))
             {
                 return value;
             }
 
             _console.WriteLine("Error: Invalid date.");
-            current = null;
+            currentAnswer = null;
         }
     }
 
     private int? ResolveCardWizard(string? seed, string prompt)
     {
-        var current = seed;
+        var currentAnswer = seed;
         while (true)
         {
-            if (current == null)
+            if (currentAnswer == null)
             {
                 _console.Write($"{prompt} ");
-                current = ReadWizardAnswer();
+                currentAnswer = ReadWizardAnswer();
             }
 
-            if (string.Equals(current, "cancel", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(currentAnswer, "cancel", StringComparison.OrdinalIgnoreCase))
             {
                 throw new WizardCancelledException();
             }
 
-            if (string.IsNullOrWhiteSpace(current))
+            if (string.IsNullOrWhiteSpace(currentAnswer))
             {
                 return null;
             }
 
-            if (int.TryParse(current.Trim(), out var parsed))
+            if (int.TryParse(currentAnswer.Trim(), out var cardId))
             {
-                return parsed;
+                return cardId;
             }
 
-            if (Regex.IsMatch(current, "^[0-9a-fA-F-]{36}$") && Guid.TryParse(current, out var guid))
+            //Check if it's a guid (numbers: 0-9 , letters: a-f or A-F , dash: -)
+            if (Regex.IsMatch(currentAnswer, "^[0-9a-fA-F-]{36}$")
+                && Guid.TryParse(currentAnswer, out var guid))
             {
-                var tail = guid.ToString("N")[20..];
-                if (int.TryParse(tail, out var fromGuid))
+                var cardIdText = guid.ToString("N")[20..];
+                if (int.TryParse(cardIdText, out var cardIdFromGuid))
                 {
-                    return fromGuid;
+                    return cardIdFromGuid;
                 }
             }
 
             var cards = _cardRepository.GetAll();
-            var byExact = cards.FirstOrDefault(c => c.Name.Equals(current.Trim(), StringComparison.OrdinalIgnoreCase));
-            if (byExact != null)
+            var cardByExact = cards
+                .FirstOrDefault(c => c.Name.Equals(
+                    currentAnswer.Trim(),
+                    StringComparison.OrdinalIgnoreCase));
+            if (cardByExact != null)
             {
-                return byExact.Id;
+                return cardByExact.Id;
             }
 
-            var byContains = cards.Where(c => c.Name.Contains(current, StringComparison.OrdinalIgnoreCase)).ToList();
-            if (byContains.Count == 1)
+            var cardsByName = cards
+                .Where(c => c.Name.Contains(
+                    currentAnswer,
+                    StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (cardsByName.Count == 1)
             {
-                return byContains[0].Id;
+                return cardsByName[0].Id;
             }
 
             _console.WriteLine("Error: Invalid card. Enter card id or card name.");
-            current = null;
+            currentAnswer = null;
         }
     }
 
     private string AskCurrency(string? seed)
     {
-        var current = seed;
+        var currentAnswer = seed;
         while (true)
         {
-            if (current == null)
+            if (currentAnswer == null)
             {
                 _console.Write("Currency (RUB/EUR)? ");
-                current = ReadWizardAnswer();
+                currentAnswer = ReadWizardAnswer();
             }
 
-            if (string.Equals(current, "cancel", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(currentAnswer, "cancel", StringComparison.OrdinalIgnoreCase))
             {
                 throw new WizardCancelledException();
             }
 
-            if (Enum.TryParse<Currency>(current, true, out _))
+            if (Enum.TryParse<Currency>(currentAnswer, true, out _))
             {
-                return current;
+                return currentAnswer;
             }
 
             _console.WriteLine("Error: Unknown currency. Allowed: RUB, EUR.");
-            current = null;
+            currentAnswer = null;
         }
     }
 
@@ -865,11 +930,11 @@ public sealed class ConsoleUi
         return answer;
     }
 
-    private static bool TryParseFlexibleDecimal(string raw, out decimal value)
+    private static bool TryParseFlexibleDecimal(string decimalText, out decimal value)
     {
-        var normalized = raw.Trim().Replace(',', '.');
+        var normalizedDecimalText = decimalText.Trim().Replace(',', '.');
         return decimal.TryParse(
-            normalized,
+            normalizedDecimalText,
             NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
             CultureInfo.InvariantCulture,
             out value);
