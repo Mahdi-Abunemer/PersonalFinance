@@ -22,17 +22,13 @@ public sealed class JsonDataStore
     {
         if (!File.Exists(_filePath))
         {
-            var emptyFile = new DataFile();
-            Save(emptyFile);
-            return emptyFile;
+            return CreateEmptyFile();
         }
 
         var jsonText = File.ReadAllText(_filePath);
         if (string.IsNullOrWhiteSpace(jsonText))
         {
-            var emptyFile = new DataFile();
-            Save(emptyFile);
-            return emptyFile;
+            return CreateEmptyFile();
         }
 
         // deserialize and then normalize collections because null is not list
@@ -49,6 +45,13 @@ public sealed class JsonDataStore
         dataFileResult.DailyLimits ??= new List<DailyLimit>();
 
         return dataFileResult;
+    }
+
+    private DataFile CreateEmptyFile()
+    {
+        var emptyFile = new DataFile();
+        Save(emptyFile);
+        return emptyFile;
     }
 
     public void Save(DataFile data)
