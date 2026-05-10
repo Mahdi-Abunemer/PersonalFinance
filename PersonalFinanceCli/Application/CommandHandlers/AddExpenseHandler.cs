@@ -1,4 +1,5 @@
 using PersonalFinanceCli.Application.Repositories;
+using PersonalFinanceCli.Application.Validation;
 using PersonalFinanceCli.Domain.Entities;
 using PersonalFinanceCli.Domain.ValueObjects;
 using PersonalFinanceCli.Infrastructure.Time;
@@ -28,15 +29,10 @@ public sealed class AddExpenseHandler
         DateOnly? date,
         string? note)
     {
-        if (amount <= 0)
-        {
-            throw new InvalidOperationException("Amount must be > 0.");
-        }
+        TransactionValidator.ValidateAmount(amount);
 
-        if (string.IsNullOrWhiteSpace(category))
-        {
-            throw new InvalidOperationException("Category cannot be empty.");
-        }
+        TransactionValidator.ValidateCategory(category);
+
         int resolvedCardId = ResolveCardId(cardId);
 
         var transaction = new Transaction
