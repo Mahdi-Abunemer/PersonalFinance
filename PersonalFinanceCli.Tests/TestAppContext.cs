@@ -1,10 +1,12 @@
 using PersonalFinanceCli.Application.CommandHandlers;
+using PersonalFinanceCli.Application.Repositories;
 using PersonalFinanceCli.Application.Services;
 using PersonalFinanceCli.Domain.Services;
 using PersonalFinanceCli.Infrastructure.Persistence;
 using PersonalFinanceCli.Infrastructure.Time;
 using PersonalFinanceCli.Presentation.Parsing;
 using PersonalFinanceCli.Presentation.Rendering;
+using System.Runtime.InteropServices;
 
 namespace PersonalFinanceCli.Tests;
 
@@ -43,6 +45,10 @@ internal sealed class TestAppContext : IDisposable
         var dailyReportService = new DailyReportService(CardRepository, TransactionRepository, LimitRepository);
         var cushionService = new CushionService(CardRepository);
         var reportPrinter = new ReportPrinter(Console.Out, CardRepository, TransactionRepository, LimitRepository);
+        var cushionTransferService = new CushionTransferService(
+           addTransactionHandler, 
+           TransactionRepository, 
+           Clock);
 
         Ui = new ConsoleUi(
             parser,
@@ -59,7 +65,8 @@ internal sealed class TestAppContext : IDisposable
             OnboardingStateRepository,
             Clock,
             Console,
-            cushionService);
+            cushionService,
+            cushionTransferService);
     }
 
     public JsonDataStore Store { get; }

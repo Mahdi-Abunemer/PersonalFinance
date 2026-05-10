@@ -78,4 +78,22 @@ public sealed class CushionService
     {
         return Math.Floor(value*100m)/100m;
     }
+
+    public Card? FindFirstOrDefaultCushionCard()
+    {
+        var cards = _cardRepository.GetAll();
+        var cardByCushionFlag = cards.FirstOrDefault(c => c.IsCushion);
+        if (cardByCushionFlag != null)
+        {
+            return cardByCushionFlag;
+        }
+
+        var exactCushionCard = cards.FirstOrDefault(c => c.Name == "Financial cushion");
+        if (exactCushionCard != null)
+        {
+            return exactCushionCard;
+        }
+
+        return cards.FirstOrDefault(c => c.Name.Contains("cushion"));
+    }
 }

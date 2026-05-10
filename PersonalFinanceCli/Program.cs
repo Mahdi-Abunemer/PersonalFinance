@@ -34,6 +34,10 @@ public static class Program
             transactionRepository,
             cardRepository,
             clock);
+        var cushionTransferService = new CushionTransferService(
+            addTransactionHandler,
+            transactionRepository,
+            clock);
         var setDailyLimitHandler = new SetDailyLimitHandler(
             limitRepository,
             cardRepository,
@@ -64,7 +68,8 @@ public static class Program
             onboardingStateRepository,
             clock,
             console,
-            cushionService);
+            cushionService,
+            cushionTransferService);
 
         if (args.Length > 0)
         {

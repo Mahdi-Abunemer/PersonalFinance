@@ -29,6 +29,7 @@ public sealed class ConsoleUi
     private readonly CushionService _cushionService;
     private readonly WizardOptionCollector _wizardOptionCollector;
     private bool _isOnboardingChecked;
+    private readonly CushionTransferService _cushionTransferService;
 
     public ConsoleUi(
         CommandParser parser,
@@ -45,7 +46,8 @@ public sealed class ConsoleUi
         IOnboardingStateRepository onboardingStateRepository,
         IClock clock,
         IConsole console,
-        CushionService cushionService)
+        CushionService cushionService,
+        CushionTransferService cushionTransferService)
     {
         _parser = parser;
         _addCardHandler = addCardHandler;
@@ -63,6 +65,7 @@ public sealed class ConsoleUi
         _console = console;
         _cushionService = cushionService;
         _wizardOptionCollector = new WizardOptionCollector();
+        _cushionTransferService = cushionTransferService;
     }
 
     public int Execute(string[] args)
@@ -139,7 +142,7 @@ public sealed class ConsoleUi
         var hasSeenOnboarding = _onboardingStateRepository.HasSeenOnboarding();
 
         var cushionCard = _cushionService.FindCushionByName()
-            ?? _addTransactionHandler.FindFirstOrDefaultCushionCard()
+            ?? _cushionService.FindFirstOrDefaultCushionCard()
             ?? _cushionService.FindCushionByContains();
         if (cushionCard != null)
         {
@@ -311,7 +314,7 @@ public sealed class ConsoleUi
                 null,
                 "Date? (YYYY-MM-DD, enter = today)");
 
-            var sourceCardId = _addTransactionHandler.ResolveCardId(cardId);
+            var sourceCardId = _cushionTransferService.ResolveCardId(cardId);
             _addIncomeHandler.Handle(amount, category, sourceCardId, date, options.Note);
 
             HandleOptionalCushionTransfer(amount, category, sourceCardId, date);
@@ -368,7 +371,7 @@ public sealed class ConsoleUi
         }
 
         var cushionCard = _cushionService.FindCushionByName()
-            ?? _addTransactionHandler.FindFirstOrDefaultCushionCard()
+            ?? _cushionService.FindFirstOrDefaultCushionCard()
             ?? _cushionService.FindCushionByContains();
 
         if (cushionCard == null)
@@ -406,7 +409,7 @@ public sealed class ConsoleUi
             return;
         }
 
-        _addTransactionHandler.AddTransferPair(
+        _cushionTransferService.AddTransferPair(
             sourceCardId,
             cushionCard.Id,
             transferAmount.Value,
