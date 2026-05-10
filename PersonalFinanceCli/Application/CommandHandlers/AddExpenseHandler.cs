@@ -37,7 +37,23 @@ public sealed class AddExpenseHandler
         {
             throw new InvalidOperationException("Category cannot be empty.");
         }
+        int resolvedCardId = ResolveCardId(cardId);
 
+        var transaction = new Transaction
+        {
+            CardId = resolvedCardId,
+            Amount = amount,
+            Category = category,
+            Date = date ?? _clock.Today,
+            Note = note,
+            Type = TransactionType.Expense
+        };
+
+        return _transactionRepository.Add(transaction);
+    }
+
+    private int ResolveCardId(int? cardId)
+    {
         int resolvedCardId;
         if (cardId.HasValue)
         {
@@ -68,16 +84,6 @@ public sealed class AddExpenseHandler
             }
         }
 
-        var transaction = new Transaction
-        {
-            CardId = resolvedCardId,
-            Amount = amount,
-            Category = category,
-            Date = date ?? _clock.Today,
-            Note = note,
-            Type = TransactionType.Expense
-        };
-
-        return _transactionRepository.Add(transaction);
+        return resolvedCardId;
     }
 }
