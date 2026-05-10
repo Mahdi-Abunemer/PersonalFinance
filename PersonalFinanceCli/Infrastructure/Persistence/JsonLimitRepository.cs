@@ -26,15 +26,7 @@ public sealed class JsonLimitRepository : ILimitRepository
             .FirstOrDefault(limit => limit.Date == date);
         if (existingDailyLimit is null)
         {
-            existingDailyLimit = new DailyLimit
-            {
-                Id = dataStore.DailyLimits.Count == 0 
-                ? 1
-                : dataStore.DailyLimits.Max(x => x.Id) + 1,
-                Date = date,
-                Amount = amount,
-                Currency = currency
-            };
+            existingDailyLimit = CreateDailyLimit(date, amount, currency, dataStore);
             dataStore.DailyLimits.Add(existingDailyLimit);
         }
         else
@@ -45,5 +37,22 @@ public sealed class JsonLimitRepository : ILimitRepository
 
         _store.Save(dataStore);
         return existingDailyLimit;
+    }
+
+    private static DailyLimit CreateDailyLimit(
+        DateOnly date, 
+        decimal amount, 
+        Currency currency, 
+        DataFile dataStore)
+    {
+        return new DailyLimit
+        {
+            Id = dataStore.DailyLimits.Count == 0
+            ? 1
+            : dataStore.DailyLimits.Max(x => x.Id) + 1,
+            Date = date,
+            Amount = amount,
+            Currency = currency
+        };
     }
 }
