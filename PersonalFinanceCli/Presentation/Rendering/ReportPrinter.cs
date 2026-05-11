@@ -1,4 +1,5 @@
 using PersonalFinanceCli.Application.Repositories;
+using PersonalFinanceCli.Domain.Entities;
 using PersonalFinanceCli.Domain.Services;
 using PersonalFinanceCli.Domain.ValueObjects;
 using System.Globalization;
@@ -80,14 +81,7 @@ public sealed class ReportPrinter
                 else
                 {
                     expense += transaction.Amount;
-                    if (categoryTotals.TryGetValue(transaction.Category, out var previousAmount))
-                    {
-                        categoryTotals[transaction.Category] = previousAmount + transaction.Amount;
-                    }
-                    else
-                    {
-                        categoryTotals[transaction.Category] = transaction.Amount;
-                    }
+                    AddCategoryTotal(categoryTotals, transaction);
                 }
             }
         }
@@ -124,62 +118,42 @@ public sealed class ReportPrinter
         }
     }
 
-    private void PrintLimit(decimal expense, decimal? limit, Currency currency)
+    private static void AddCategoryTotal(
+        Dictionary<string, decimal> categoryTotals,
+        Transaction transaction)
     {
-        if (limit.HasValue)
+        if (categoryTotals.TryGetValue(transaction.Category, out var previousAmount))
         {
-            if (limit.Value <= 0)
-            {
-                _writer.WriteLine("Limit: (not set)");
-                return;
-            }
-
-            var percent = limit.Value == 0m 
-                ? 0
-                : (int)Math.Round((expense / limit.Value) * 100m, MidpointRounding.AwayFromZero);
-            _writer.WriteLine($"Limit: {limit.Value:F2} {currency} ({percent}%)");
-            return;
+            categoryTotals[transaction.Category] = previousAmount + transaction.Amount;
         }
-
-        _writer.WriteLine("Limit: (not set)");
+        else
+        {
+            categoryTotals[transaction.Category] = transaction.Amount;
+        }
     }
 
     private void PrintLimitWithFloorPercent(decimal expense, decimal? limit, Currency currency)
     {
-        if (limit.HasValue)
+        if (TryPrintMissingLimit(limit))
         {
-            if (limit.Value <= 0)
-            {
-                _writer.WriteLine("Limit: (not set)");
-                return;
-            }
-
-            var percent = (int)Math.Floor((expense / limit.Value) * 100m);
-            _writer.WriteLine($"Limit: {FormatMoney(limit.Value, currency)} ({percent}%)");
             return;
         }
 
-        _writer.WriteLine("Limit: (not set)");
+        var percent = (int)Math.Floor((expense / limit!.Value) * 100m);
+            _writer.WriteLine($"Limit: {FormatMoney(limit.Value, currency)} ({percent}%)");
     }
 
     private void PrintLimitWithRoundPercent(decimal expense, decimal? limit, Currency currency)
     {
-        if (limit.HasValue)
+        if (TryPrintMissingLimit(limit))
         {
-            if (limit.Value <= 0)
-            {
-                _writer.WriteLine("Limit: (not set)");
-                return;
-            }
-
-            var percent = limit.Value == 0m 
-                ? 0 
-                : (int)Math.Round((expense / limit.Value) * 100m, MidpointRounding.AwayFromZero);
-            _writer.WriteLine($"Limit: {limit.Value:F2} {currency} ({percent}%)");
             return;
         }
 
-        _writer.WriteLine("Limit: (not set)");
+        var percent = limit!.Value == 0m 
+                ? 0 
+                : (int)Math.Round((expense / limit.Value) * 100m, MidpointRounding.AwayFromZero);
+            _writer.WriteLine($"Limit: {limit.Value:F2} {currency} ({percent}%)");
     }
 
     private Dictionary<string, decimal> RecalculateCategories(DateOnly date, Currency currency)
@@ -201,14 +175,7 @@ public sealed class ReportPrinter
                 continue;
             }
 
-            if (categoryTotals.TryGetValue(transaction.Category, out var previousAmount))
-            {
-                categoryTotals[transaction.Category] = previousAmount + transaction.Amount;
-            }
-            else
-            {
-                categoryTotals[transaction.Category] = transaction.Amount;
-            }
+            AddCategoryTotal(categoryTotals, transaction);
         }
 
         return categoryTotals;
@@ -217,5 +184,16 @@ public sealed class ReportPrinter
     public static string FormatMoney(decimal amount, Currency currency)
     {
         return string.Create(CultureInfo.InvariantCulture, $"{amount:F2} {currency}");
+    }
+
+    private bool TryPrintMissingLimit(decimal? limit)
+    {
+        if (!limit.HasValue || limit.Value <= 0)
+        {
+            _writer.WriteLine("Limit: (not set)");
+            return true;
+        }
+
+        return false;
     }
 }
