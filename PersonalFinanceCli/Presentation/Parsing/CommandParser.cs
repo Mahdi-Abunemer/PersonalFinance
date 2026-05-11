@@ -170,13 +170,7 @@ public sealed class CommandParser
             else if (option == "--date")
             {
                 tokenIndex++;
-                if (tokenIndex >= tokens.Count 
-                    || !DateOnly.TryParse(tokens[tokenIndex], out var parsedDate))
-                {
-                    throw new InvalidOperationException("Invalid --date value. Use YYYY-MM-DD.");
-                }
-
-                date = parsedDate;
+                date = ParseDateOptionValue(tokens, tokenIndex);
             }
             else if (option == "--note")
             {
@@ -197,6 +191,17 @@ public sealed class CommandParser
         }
 
         return (cardId, date, note);
+    }
+
+    private static DateOnly ParseDateOptionValue(IReadOnlyList<string> tokens, int tokenIndex)
+    {
+        if (tokenIndex >= tokens.Count
+            || !DateOnly.TryParse(tokens[tokenIndex], out var parsedDate))
+        {
+            throw new InvalidOperationException("Invalid --date value. Use YYYY-MM-DD.");
+        }
+
+        return parsedDate;
     }
 
     public static int? ResolveCardFromArgs(string cardArgument)
@@ -268,14 +273,7 @@ public sealed class CommandParser
             if (option == "--date")
             {
                 tokenIndex++;
-                if (tokenIndex >= tokens.Count 
-                    || !DateOnly.TryParse(tokens[tokenIndex], 
-                    out var parsedDate))
-                {
-                    throw new InvalidOperationException("Invalid --date value. Use YYYY-MM-DD.");
-                }
-
-                date = parsedDate;
+                date = ParseDateOptionValue(tokens, tokenIndex);
             }
             else
             {
