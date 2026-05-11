@@ -55,14 +55,8 @@ public sealed class ReportPrinter
     public void PrintDayUsingRepositories(DateOnly date)
     {
         var cards = _cardRepository.GetAll();
-        var currency = cards.FirstOrDefault(c => c.IsDefault)?.Currency
-            ?? cards.FirstOrDefault()?.Currency
-            ?? Currency.RUB;
-
-        var cardIds = cards
-            .Where(c => c.Currency == currency)
-            .Select(c => c.Id)
-            .ToHashSet();
+        var currency = GetReportCurrency(cards);
+        var cardIds = GetCardIdsByCurrency(cards, currency);
 
         var allTransactions = _transactionRepository.GetAll();
 
@@ -99,23 +93,53 @@ public sealed class ReportPrinter
             _writer.WriteLine($"  {pair.Key}: {pair.Value:F2} {currency}");
         }
 
+        PrintCards(cards, allTransactions);
+    }
+
+    private void PrintCards(IReadOnlyList<Card> cards,
+        IReadOnlyList<Transaction> allTransactions)
+    {
         _writer.WriteLine("Cards:");
         foreach (var card in cards.OrderBy(c => c.Id))
         {
-            decimal balance = card.InitialBalance;
-            foreach (var transaction in allTransactions)
-            {
-                if (transaction.CardId == card.Id)
-                {
-                    balance = transaction.Type == TransactionType.Income 
-                        ? balance + transaction.Amount 
-                        : balance - transaction.Amount;
-                }
-            }
+            decimal balance = CalculateCardBalance(allTransactions, card);
 
             var defaultSuffix = card.IsDefault ? " (default)" : "";
             _writer.WriteLine($"  {card.Name}{defaultSuffix}: {balance:F2} {card.Currency}");
         }
+    }
+
+    private static decimal CalculateCardBalance(IReadOnlyList<Transaction> allTransactions, Card card)
+    {
+        decimal balance = card.InitialBalance;
+        foreach (var transaction in allTransactions)
+        {
+            if (transaction.CardId == card.Id)
+            {
+                balance = transaction.Type == TransactionType.Income
+                    ? balance + transaction.Amount
+                    : balance - transaction.Amount;
+            }
+        }
+
+        return balance;
+    }
+
+    private static HashSet<int> GetCardIdsByCurrency(
+        IReadOnlyList<Card> cards,
+        Currency currency)
+    {
+        return cards
+            .Where(c => c.Currency == currency)
+            .Select(c => c.Id)
+            .ToHashSet();
+    }
+
+    private static Currency GetReportCurrency(IReadOnlyList<Card> cards)
+    {
+        return cards.FirstOrDefault(c => c.IsDefault)?.Currency
+            ?? cards.FirstOrDefault()?.Currency
+            ?? Currency.RUB;
     }
 
     private static void AddCategoryTotal(
@@ -159,10 +183,7 @@ public sealed class ReportPrinter
     private Dictionary<string, decimal> RecalculateCategories(DateOnly date, Currency currency)
     {
         var cards = _cardRepository.GetAll();
-        var cardIds = cards
-            .Where(c => c.Currency == currency)
-            .Select(c => c.Id)
-            .ToHashSet();
+        var cardIds = GetCardIdsByCurrency(cards, currency);
 
         var categoryTotals = new Dictionary<string, decimal>(StringComparer.Ordinal);
 
@@ -181,7 +202,7 @@ public sealed class ReportPrinter
         return categoryTotals;
     }
 
-    public static string FormatMoney(decimal amount, Currency currency)
+    private static string FormatMoney(decimal amount, Currency currency)
     {
         return string.Create(CultureInfo.InvariantCulture, $"{amount:F2} {currency}");
     }
