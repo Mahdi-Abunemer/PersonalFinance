@@ -241,42 +241,37 @@ public sealed class ConsoleUi
         }
         catch (Exception ex)
         {
-            _console.WriteLine($"Error: {ex.Message}");
-            _console.WriteLine("type help");
+            PrintWizardError(ex);
         }
+    }
+
+    private void PrintWizardError(Exception ex)
+    {
+        _console.WriteLine($"Error: {ex.Message}");
+        _console.WriteLine("type help");
     }
 
     private void HandleExpenseAddWizard(IReadOnlyList<string> tokens)
     {
         try
         {
-            var amount = _wizardPromptReader
-                .AskRequiredDecimal(tokens.Count >= 3 ? tokens[2] : null, "Amount?");
+            decimal amount;
+            WizardOptions options;
+            string category;
+            int? cardId;
+            DateOnly? date;
+            bool flowControl = ReadTransactionWizardInput(
+                tokens, 
+                out amount, 
+                out options, 
+                out category, 
+                out cardId, 
+                out date);
 
-            var categoryToken = tokens.Count >= 4 ? tokens[3] : null;
-            var optionsIndex = 4;
-            if (categoryToken != null
-                && categoryToken.StartsWith("--", StringComparison.Ordinal))
+            if (!flowControl)
             {
-                categoryToken = null;
-                optionsIndex = 3;
-            }
-
-            var options = _wizardOptionCollector.Collect(tokens, optionsIndex);
-            if (options.Error != null)
-            {
-                _console.WriteLine($"Error: {options.Error}");
-                _console.WriteLine("type help");
                 return;
             }
-
-            var category = _wizardPromptReader.AskRequiredText(categoryToken, "Category?");
-            var cardId = _wizardPromptReader.ResolveCardWizard(
-                options.CardRaw, 
-                "Card? (enter to use default, id or name)");
-            var date = options.Date ?? _wizardPromptReader.AskOptionalDate(
-                null,
-                "Date? (YYYY-MM-DD, enter = today)");
 
             _addExpenseHandler.Handle(amount, category, cardId, date, options.Note);
 
@@ -289,42 +284,71 @@ public sealed class ConsoleUi
         }
         catch (Exception ex)
         {
-            _console.WriteLine($"Error: {ex.Message}");
-            _console.WriteLine("type help");
+            PrintWizardError(ex);
         }
+    }
+
+    private bool ReadTransactionWizardInput(
+        IReadOnlyList<string> tokens, 
+        out decimal amount, 
+        out WizardOptions options, 
+        out string category, 
+        out int? cardId, 
+        out DateOnly? date)
+    {
+        amount = _wizardPromptReader
+                        .AskRequiredDecimal(tokens.Count >= 3 ? tokens[2] : null, "Amount?");
+        var categoryToken = tokens.Count >= 4 ? tokens[3] : null;
+        var optionsIndex = 4;
+        if (categoryToken != null
+            && categoryToken.StartsWith("--", StringComparison.Ordinal))
+        {
+            categoryToken = null;
+            optionsIndex = 3;
+        }
+
+        options = _wizardOptionCollector.Collect(tokens, optionsIndex);
+        if (options.Error != null)
+        {
+            _console.WriteLine($"Error: {options.Error}");
+            _console.WriteLine("type help");
+            category = null!;
+            cardId = null;
+            date = null;
+            return false;
+        }
+
+        category = _wizardPromptReader.AskRequiredText(categoryToken, "Category?");
+        cardId = _wizardPromptReader.ResolveCardWizard(
+            options.CardRaw,
+            "Card? (enter to use default, id or name)");
+        date = options.Date ?? _wizardPromptReader.AskOptionalDate(
+            null,
+            "Date? (YYYY-MM-DD, enter = today)");
+        return true;
     }
 
     private void HandleIncomeAddWizard(IReadOnlyList<string> tokens)
     {
         try
         {
-            var amount = _wizardPromptReader.
-                AskRequiredDecimal(tokens.Count >= 3 ? tokens[2] : null, "Amount?");
+            decimal amount;
+            WizardOptions options;
+            string category;
+            int? cardId;
+            DateOnly? date;
+            bool flowControl = ReadTransactionWizardInput(
+                tokens,
+                out amount,
+                out options,
+                out category,
+                out cardId,
+                out date);
 
-            var categoryToken = tokens.Count >= 4 ? tokens[3] : null;
-            var optionsIndex = 4;
-            if (categoryToken != null
-                && categoryToken.StartsWith("--", StringComparison.Ordinal))
+            if (!flowControl)
             {
-                categoryToken = null;
-                optionsIndex = 3;
-            }
-
-            var options = _wizardOptionCollector.Collect(tokens, optionsIndex);
-            if (options.Error != null)
-            {
-                _console.WriteLine($"Error: {options.Error}");
-                _console.WriteLine("type help");
                 return;
             }
-
-            var category = _wizardPromptReader.AskRequiredText(categoryToken, "Category?");
-            var cardId = _wizardPromptReader.ResolveCardWizard(
-                options.CardRaw,
-                "Card? (enter to use default, id or name)");
-            var date = options.Date ?? _wizardPromptReader.AskOptionalDate(
-                null,
-                "Date? (YYYY-MM-DD, enter = today)");
 
             var sourceCardId = _cushionTransferService.ResolveCardId(cardId);
             _addIncomeHandler.Handle(amount, category, sourceCardId, date, options.Note);
@@ -340,8 +364,7 @@ public sealed class ConsoleUi
         }
         catch (Exception ex)
         {
-            _console.WriteLine($"Error: {ex.Message}");
-            _console.WriteLine("type help");
+            PrintWizardError(ex);
         }
     }
 
@@ -360,8 +383,7 @@ public sealed class ConsoleUi
         }
         catch (Exception ex)
         {
-            _console.WriteLine($"Error: {ex.Message}");
-            _console.WriteLine("type help");
+            PrintWizardError(ex);
         }
     }
 

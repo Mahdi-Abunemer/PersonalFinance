@@ -19,26 +19,18 @@ namespace PersonalFinanceCli.Presentation.Rendering
         {
             while (true)
             {
-                _console.Write($"{prompt} ");
-
-                var rawAnswer = _console.ReadLine();
+                string? rawAnswer = ReadAnswer(prompt);
                 if (rawAnswer == null)
                 {
                     return false;
                 }
 
                 var normalizedAnswer = rawAnswer.Trim();
-                if (normalizedAnswer.Equals("y", StringComparison.OrdinalIgnoreCase)
-                    || normalizedAnswer.Equals("yes", StringComparison.OrdinalIgnoreCase))
-                {
+                if (IsYes(normalizedAnswer))
                     return true;
-                }
 
-                if (normalizedAnswer.Equals("n", StringComparison.OrdinalIgnoreCase)
-                    || normalizedAnswer.Equals("no", StringComparison.OrdinalIgnoreCase))
-                {
+                if (IsNo(normalizedAnswer))
                     return false;
-                }
 
                 _console.WriteLine("Error: Please answer y/n.");
             }
@@ -48,9 +40,7 @@ namespace PersonalFinanceCli.Presentation.Rendering
         {
             while (true)
             {
-                _console.Write($"{prompt} ");
-
-                var rawAnswer = _console.ReadLine();
+                string? rawAnswer = ReadAnswer(prompt);
                 if (rawAnswer == null)
                 {
                     return false;
@@ -62,17 +52,11 @@ namespace PersonalFinanceCli.Presentation.Rendering
                     return true;
                 }
 
-                if (normalizedAnswer.Equals("y", StringComparison.OrdinalIgnoreCase)
-                    || normalizedAnswer.Equals("yes", StringComparison.OrdinalIgnoreCase))
-                {
+                if (IsYes(normalizedAnswer))
                     return true;
-                }
 
-                if (normalizedAnswer.Equals("n", StringComparison.OrdinalIgnoreCase)
-                    || normalizedAnswer.Equals("no", StringComparison.OrdinalIgnoreCase))
-                {
+                if (IsNo(normalizedAnswer))
                     return false;
-                }
 
                 _console.WriteLine("Error: Please answer y/n.");
             }
@@ -82,9 +66,7 @@ namespace PersonalFinanceCli.Presentation.Rendering
         {
             while (true)
             {
-                _console.Write($"{prompt} ");
-
-                var rawAnswer = _console.ReadLine();
+                string? rawAnswer = ReadAnswer(prompt);
                 if (rawAnswer == null)
                 {
                     return false;
@@ -96,17 +78,11 @@ namespace PersonalFinanceCli.Presentation.Rendering
                     return false;
                 }
 
-                if (normalizedAnswer.Equals("y", StringComparison.OrdinalIgnoreCase)
-                    || normalizedAnswer.Equals("yes", StringComparison.OrdinalIgnoreCase))
-                {
+                if (IsYes(normalizedAnswer))
                     return true;
-                }
 
-                if (normalizedAnswer.Equals("n", StringComparison.OrdinalIgnoreCase)
-                    || normalizedAnswer.Equals("no", StringComparison.OrdinalIgnoreCase))
-                {
+                if (IsNo(normalizedAnswer))
                     return false;
-                }
 
                 _console.WriteLine("Error: Please answer y/n.");
             }
@@ -118,9 +94,7 @@ namespace PersonalFinanceCli.Presentation.Rendering
 
             while (true)
             {
-                _console.Write($"{prompt} ");
-
-                var rawAnswer = _console.ReadLine();
+                string? rawAnswer = ReadAnswer(prompt);
                 if (rawAnswer == null)
                 {
                     return false;
@@ -138,20 +112,34 @@ namespace PersonalFinanceCli.Presentation.Rendering
                     return false;
                 }
 
-                if (normalizedAnswer.Equals("y", StringComparison.OrdinalIgnoreCase)
-                    || normalizedAnswer.Equals("yes", StringComparison.OrdinalIgnoreCase))
-                {
+                if (IsYes(normalizedAnswer))
                     return true;
-                }
 
-                if (normalizedAnswer.Equals("n", StringComparison.OrdinalIgnoreCase)
-                    || normalizedAnswer.Equals("no", StringComparison.OrdinalIgnoreCase))
-                {
+                if (IsNo(normalizedAnswer))
                     return false;
-                }
 
                 _console.WriteLine("Error: Please answer y/n.");
             }
+        }
+
+        private static bool IsYes(string answer)
+        {
+            return answer.Equals("y", StringComparison.OrdinalIgnoreCase)
+                || answer.Equals("yes", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsNo(string answer)
+        {
+            return answer.Equals("n", StringComparison.OrdinalIgnoreCase)
+                || answer.Equals("no", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private string? ReadAnswer(string prompt)
+        {
+            _console.Write($"{prompt} ");
+
+            var rawAnswer = _console.ReadLine();
+            return rawAnswer;
         }
     }
 }

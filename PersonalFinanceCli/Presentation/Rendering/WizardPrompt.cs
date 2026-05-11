@@ -27,16 +27,9 @@ namespace PersonalFinanceCli.Presentation.Rendering
             var currentAnswer = seed;
             while (true)
             {
-                if (currentAnswer == null)
-                {
-                    _console.Write($"{prompt} ");
-                    currentAnswer = ReadWizardAnswer();
-                }
+                currentAnswer = GetCurrentAnswer(prompt, currentAnswer);
 
-                if (string.Equals(currentAnswer, "cancel", StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new WizardCancelledException();
-                }
+                ThrowIfCancelled(currentAnswer);
 
                 if (!string.IsNullOrWhiteSpace(currentAnswer))
                 {
@@ -53,16 +46,9 @@ namespace PersonalFinanceCli.Presentation.Rendering
             var currentAnswer = seed;
             while (true)
             {
-                if (currentAnswer == null)
-                {
-                    _console.Write($"{prompt} ");
-                    currentAnswer = ReadWizardAnswer();
-                }
+                currentAnswer = GetCurrentAnswer(prompt, currentAnswer);
 
-                if (string.Equals(currentAnswer, "cancel", StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new WizardCancelledException();
-                }
+                ThrowIfCancelled(currentAnswer);
 
                 if (TryParseFlexibleDecimal(currentAnswer, out var value))
                 {
@@ -79,16 +65,9 @@ namespace PersonalFinanceCli.Presentation.Rendering
             var currentAnswer = seed;
             while (true)
             {
-                if (currentAnswer == null)
-                {
-                    _console.Write($"{prompt} ");
-                    currentAnswer = ReadWizardAnswer();
-                }
+                currentAnswer = GetCurrentAnswer(prompt, currentAnswer);
 
-                if (string.Equals(currentAnswer, "cancel", StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new WizardCancelledException();
-                }
+                ThrowIfCancelled(currentAnswer);
 
                 if (string.IsNullOrWhiteSpace(currentAnswer))
                 {
@@ -110,16 +89,9 @@ namespace PersonalFinanceCli.Presentation.Rendering
             var currentAnswer = seed;
             while (true)
             {
-                if (currentAnswer == null)
-                {
-                    _console.Write($"{prompt} ");
-                    currentAnswer = ReadWizardAnswer();
-                }
+                currentAnswer = GetCurrentAnswer(prompt, currentAnswer);
 
-                if (string.Equals(currentAnswer, "cancel", StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new WizardCancelledException();
-                }
+                ThrowIfCancelled(currentAnswer);
 
                 if (string.IsNullOrWhiteSpace(currentAnswer))
                 {
@@ -141,16 +113,9 @@ namespace PersonalFinanceCli.Presentation.Rendering
             var currentAnswer = seed;
             while (true)
             {
-                if (currentAnswer == null)
-                {
-                    _console.Write($"{prompt} ");
-                    currentAnswer = ReadWizardAnswer();
-                }
+                currentAnswer = GetCurrentAnswer(prompt, currentAnswer);
 
-                if (string.Equals(currentAnswer, "cancel", StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new WizardCancelledException();
-                }
+                ThrowIfCancelled(currentAnswer);
 
                 if (string.IsNullOrWhiteSpace(currentAnswer))
                 {
@@ -209,10 +174,7 @@ namespace PersonalFinanceCli.Presentation.Rendering
                     currentAnswer = ReadWizardAnswer();
                 }
 
-                if (string.Equals(currentAnswer, "cancel", StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new WizardCancelledException();
-                }
+                ThrowIfCancelled(currentAnswer);
 
                 if (Enum.TryParse<Currency>(currentAnswer, true, out _))
                 {
@@ -243,6 +205,25 @@ namespace PersonalFinanceCli.Presentation.Rendering
                 NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
                 CultureInfo.InvariantCulture,
                 out value);
+        }
+
+        private string GetCurrentAnswer(string prompt, string? currentAnswer)
+        {
+            if (currentAnswer == null)
+            {
+                _console.Write($"{prompt} ");
+                currentAnswer = ReadWizardAnswer();
+            }
+
+            return currentAnswer;
+        }
+
+        private static void ThrowIfCancelled(string? currentAnswer)
+        {
+            if (string.Equals(currentAnswer, "cancel", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new WizardCancelledException();
+            }
         }
 
     }
