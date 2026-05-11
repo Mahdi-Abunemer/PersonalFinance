@@ -52,12 +52,15 @@ public static class Program
             cardRepository,
             transactionRepository,
             limitRepository);
+        var yesNoPrompt = new YesNoPrompt(console);
+        var wizardPromptReader = new WizardPrompt(
+            console,
+            cardRepository);
 
         var consoleUi = new ConsoleUi(
             parser,
             addCardHandler,
             setDefaultCardHandler,
-            addTransactionHandler,
             addIncomeHandler,
             addExpenseHandler,
             setDailyLimitHandler,
@@ -69,7 +72,9 @@ public static class Program
             clock,
             console,
             cushionService,
-            cushionTransferService);
+            cushionTransferService,
+            yesNoPrompt,
+            wizardPromptReader);
 
         if (args.Length > 0)
         {

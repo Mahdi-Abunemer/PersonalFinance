@@ -49,12 +49,13 @@ internal sealed class TestAppContext : IDisposable
            addTransactionHandler, 
            TransactionRepository, 
            Clock);
+        var yesNoPrompt = new YesNoPrompt(Console);
+        var wizardPromptReader = new WizardPrompt(Console, CardRepository);
 
         Ui = new ConsoleUi(
             parser,
             addCardHandler,
             setDefaultCardHandler,
-            addTransactionHandler,
             addIncomeHandler,
             addExpenseHandler,
             setDailyLimitHandler,
@@ -66,7 +67,9 @@ internal sealed class TestAppContext : IDisposable
             Clock,
             Console,
             cushionService,
-            cushionTransferService);
+            cushionTransferService,
+            yesNoPrompt,
+            wizardPromptReader);
     }
 
     public JsonDataStore Store { get; }
