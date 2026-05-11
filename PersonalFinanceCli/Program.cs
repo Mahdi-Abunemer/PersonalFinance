@@ -34,6 +34,10 @@ public static class Program
             transactionRepository,
             cardRepository,
             clock);
+        var cushionTransferService = new CushionTransferService(
+            addTransactionHandler,
+            transactionRepository,
+            clock);
         var setDailyLimitHandler = new SetDailyLimitHandler(
             limitRepository,
             cardRepository,
@@ -48,12 +52,15 @@ public static class Program
             cardRepository,
             transactionRepository,
             limitRepository);
+        var yesNoPrompt = new YesNoPrompt(console);
+        var wizardPromptReader = new WizardPrompt(
+            console,
+            cardRepository);
 
         var consoleUi = new ConsoleUi(
             parser,
             addCardHandler,
             setDefaultCardHandler,
-            addTransactionHandler,
             addIncomeHandler,
             addExpenseHandler,
             setDailyLimitHandler,
@@ -64,7 +71,10 @@ public static class Program
             onboardingStateRepository,
             clock,
             console,
-            cushionService);
+            cushionService,
+            cushionTransferService,
+            yesNoPrompt,
+            wizardPromptReader);
 
         if (args.Length > 0)
         {

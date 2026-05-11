@@ -23,13 +23,8 @@ public sealed class DailyReportService
     public DailyReport Generate(DateOnly date)
     {
         var cards = _cardRepository.GetAll();
-        var currency = cards.FirstOrDefault(c => c.IsDefault)?.Currency
-            ?? cards.FirstOrDefault()?.Currency
-            ?? Currency.RUB;
-
-        var cardIds = cards.Where(c => c.Currency == currency)
-            .Select(c => c.Id)
-            .ToHashSet();
+        var currency = GetReportCurrency(cards);
+        var cardIds = GetCardIdsByCurrency(cards, currency);
 
         var allTransactions = _transactionRepository.GetAll();
 
@@ -52,15 +47,7 @@ public sealed class DailyReportService
             else
             {
                 expense += transaction.Amount;
-
-                if (categoryTotals.ContainsKey(transaction.Category))
-                {
-                    categoryTotals[transaction.Category] += transaction.Amount;
-                }
-                else
-                {
-                    categoryTotals[transaction.Category] = transaction.Amount;
-                }
+                AddExpenseToCategory(categoryTotals, transaction);
             }
         }
 
@@ -76,6 +63,22 @@ public sealed class DailyReportService
             limitPercentByCast = 0;
         }
 
+        var balances = CreateCardBalances(cards, allTransactions);
+
+        return new DailyReport(
+            date,
+            currency,
+            income,
+            expense,
+            categoryTotals,
+            balances,
+            limit);
+    }
+
+    private static IReadOnlyList<CardBalanceLine> CreateCardBalances(
+        IReadOnlyList<Card> cards, 
+        IReadOnlyList<Transaction> allTransactions)
+    {
         var balances = new List<CardBalanceLine>();
         foreach (var card in cards)
         {
@@ -101,14 +104,37 @@ public sealed class DailyReportService
                 card.Currency));
         }
 
-        return new DailyReport(
-            date,
-            currency,
-            income,
-            expense,
-            categoryTotals,
-            balances,
-            limit);
+        return balances;
+    }
+
+    private static void AddExpenseToCategory(
+        Dictionary<string, decimal> categoryTotals, 
+        Transaction transaction)
+    {
+        if (categoryTotals.ContainsKey(transaction.Category))
+        {
+            categoryTotals[transaction.Category] += transaction.Amount;
+        }
+        else
+        {
+            categoryTotals[transaction.Category] = transaction.Amount;
+        }
+    }
+
+    private static HashSet<int> GetCardIdsByCurrency(
+        IReadOnlyList<Card> cards, 
+        Currency currency)
+    {
+        return cards.Where(c => c.Currency == currency)
+            .Select(c => c.Id)
+            .ToHashSet();
+    }
+
+    private static Currency GetReportCurrency(IReadOnlyList<Card> cards)
+    {
+        return cards.FirstOrDefault(c => c.IsDefault)?.Currency
+            ?? cards.FirstOrDefault()?.Currency
+            ?? Currency.RUB;
     }
 }
 

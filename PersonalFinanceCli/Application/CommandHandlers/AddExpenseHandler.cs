@@ -1,4 +1,5 @@
 using PersonalFinanceCli.Application.Repositories;
+using PersonalFinanceCli.Application.Validation;
 using PersonalFinanceCli.Domain.Entities;
 using PersonalFinanceCli.Domain.ValueObjects;
 using PersonalFinanceCli.Infrastructure.Time;
@@ -28,16 +29,27 @@ public sealed class AddExpenseHandler
         DateOnly? date,
         string? note)
     {
-        if (amount <= 0)
-        {
-            throw new InvalidOperationException("Amount must be > 0.");
-        }
+        TransactionValidator.ValidateAmount(amount);
 
-        if (string.IsNullOrWhiteSpace(category))
-        {
-            throw new InvalidOperationException("Category cannot be empty.");
-        }
+        TransactionValidator.ValidateCategory(category);
 
+        int resolvedCardId = ResolveCardId(cardId);
+
+        var transaction = new Transaction
+        {
+            CardId = resolvedCardId,
+            Amount = amount,
+            Category = category,
+            Date = date ?? _clock.Today,
+            Note = note,
+            Type = TransactionType.Expense
+        };
+
+        return _transactionRepository.Add(transaction);
+    }
+
+    private int ResolveCardId(int? cardId)
+    {
         int resolvedCardId;
         if (cardId.HasValue)
         {
@@ -68,16 +80,6 @@ public sealed class AddExpenseHandler
             }
         }
 
-        var transaction = new Transaction
-        {
-            CardId = resolvedCardId,
-            Amount = amount,
-            Category = category,
-            Date = date ?? _clock.Today,
-            Note = note,
-            Type = TransactionType.Expense
-        };
-
-        return _transactionRepository.Add(transaction);
+        return resolvedCardId;
     }
 }

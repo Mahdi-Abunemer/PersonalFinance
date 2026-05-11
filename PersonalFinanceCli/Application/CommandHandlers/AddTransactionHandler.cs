@@ -1,4 +1,5 @@
 using PersonalFinanceCli.Application.Repositories;
+using PersonalFinanceCli.Application.Validation;
 using PersonalFinanceCli.Domain.Entities;
 using PersonalFinanceCli.Domain.ValueObjects;
 using PersonalFinanceCli.Infrastructure.Time;
@@ -7,9 +8,6 @@ namespace PersonalFinanceCli.Application.CommandHandlers;
 
 public sealed class AddTransactionHandler
 {
-    public const string TransferToCushion = "Transfer to cushion";
-    public const string TransferFromIncome = "Transfer from income";
-
     private readonly ITransactionRepository _transactionRepository;
     private readonly ICardRepository _cardRepository;
     private readonly IClock _clock;
@@ -32,15 +30,9 @@ public sealed class AddTransactionHandler
         DateOnly? date,
         string? note)
     {
-        if (amount <= 0)
-        {
-            throw new InvalidOperationException("Amount must be > 0.");
-        }
+        TransactionValidator.ValidateAmount(amount);
 
-        if (string.IsNullOrWhiteSpace(category))
-        {
-            throw new InvalidOperationException("Category cannot be empty.");
-        }
+        TransactionValidator.ValidateCategory(category);
 
         var selectedCardId = ResolveCardSelectedId(cardId, transactionType);
         var selectedCard = _cardRepository.GetById(selectedCardId);
@@ -107,57 +99,5 @@ public sealed class AddTransactionHandler
         }
 
         return firstIncomeCardInStore.Id;
-    }
-
-    public int ResolveCardId(int? cardId)
-    {
-        return ResolveCardSelectedId(cardId, TransactionType.Income);
-    }
-
-    public Card? FindFirstOrDefaultCushionCard()
-    {
-        var cards = _cardRepository.GetAll();
-        var cardByCushionFlag = cards.FirstOrDefault(c => c.IsCushion);
-        if (cardByCushionFlag != null)
-        {
-            return cardByCushionFlag;
-        }
-
-        var exactCushionCard = cards.FirstOrDefault(c => c.Name == "Financial cushion");
-        if (exactCushionCard != null)
-        {
-            return exactCushionCard;
-        }
-
-        return cards.FirstOrDefault(c => c.Name.Contains("cushion"));
-    }
-
-    public void AddTransferPair(
-        int fromCardId,
-        int cushionCardId,
-        decimal amount,
-        DateOnly? date)
-    {
-        var transferDate = date ?? _clock.Today;
-
-        _transactionRepository.Add(new Transaction
-        {
-            CardId = fromCardId,
-            Amount = amount,
-            Category = TransferToCushion,
-            Date = transferDate,
-            Note = "auto",
-            Type = TransactionType.Expense
-        });
-
-        _transactionRepository.Add(new Transaction
-        {
-            CardId = cushionCardId,
-            Amount = amount,
-            Category = TransferFromIncome,
-            Date = transferDate,
-            Note = "auto",
-            Type = TransactionType.Income
-        });
     }
 }

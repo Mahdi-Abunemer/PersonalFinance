@@ -1,4 +1,5 @@
 using PersonalFinanceCli.Application.Repositories;
+using PersonalFinanceCli.Domain.Entities;
 using PersonalFinanceCli.Domain.Services;
 using PersonalFinanceCli.Domain.ValueObjects;
 using System.Globalization;
@@ -54,14 +55,8 @@ public sealed class ReportPrinter
     public void PrintDayUsingRepositories(DateOnly date)
     {
         var cards = _cardRepository.GetAll();
-        var currency = cards.FirstOrDefault(c => c.IsDefault)?.Currency
-            ?? cards.FirstOrDefault()?.Currency
-            ?? Currency.RUB;
-
-        var cardIds = cards
-            .Where(c => c.Currency == currency)
-            .Select(c => c.Id)
-            .ToHashSet();
+        var currency = GetReportCurrency(cards);
+        var cardIds = GetCardIdsByCurrency(cards, currency);
 
         var allTransactions = _transactionRepository.GetAll();
 
@@ -80,14 +75,7 @@ public sealed class ReportPrinter
                 else
                 {
                     expense += transaction.Amount;
-                    if (categoryTotals.TryGetValue(transaction.Category, out var previousAmount))
-                    {
-                        categoryTotals[transaction.Category] = previousAmount + transaction.Amount;
-                    }
-                    else
-                    {
-                        categoryTotals[transaction.Category] = transaction.Amount;
-                    }
+                    AddCategoryTotal(categoryTotals, transaction);
                 }
             }
         }
@@ -105,90 +93,97 @@ public sealed class ReportPrinter
             _writer.WriteLine($"  {pair.Key}: {pair.Value:F2} {currency}");
         }
 
+        PrintCards(cards, allTransactions);
+    }
+
+    private void PrintCards(IReadOnlyList<Card> cards,
+        IReadOnlyList<Transaction> allTransactions)
+    {
         _writer.WriteLine("Cards:");
         foreach (var card in cards.OrderBy(c => c.Id))
         {
-            decimal balance = card.InitialBalance;
-            foreach (var transaction in allTransactions)
-            {
-                if (transaction.CardId == card.Id)
-                {
-                    balance = transaction.Type == TransactionType.Income 
-                        ? balance + transaction.Amount 
-                        : balance - transaction.Amount;
-                }
-            }
+            decimal balance = CalculateCardBalance(allTransactions, card);
 
             var defaultSuffix = card.IsDefault ? " (default)" : "";
             _writer.WriteLine($"  {card.Name}{defaultSuffix}: {balance:F2} {card.Currency}");
         }
     }
 
-    private void PrintLimit(decimal expense, decimal? limit, Currency currency)
+    private static decimal CalculateCardBalance(IReadOnlyList<Transaction> allTransactions, Card card)
     {
-        if (limit.HasValue)
+        decimal balance = card.InitialBalance;
+        foreach (var transaction in allTransactions)
         {
-            if (limit.Value <= 0)
+            if (transaction.CardId == card.Id)
             {
-                _writer.WriteLine("Limit: (not set)");
-                return;
+                balance = transaction.Type == TransactionType.Income
+                    ? balance + transaction.Amount
+                    : balance - transaction.Amount;
             }
-
-            var percent = limit.Value == 0m 
-                ? 0
-                : (int)Math.Round((expense / limit.Value) * 100m, MidpointRounding.AwayFromZero);
-            _writer.WriteLine($"Limit: {limit.Value:F2} {currency} ({percent}%)");
-            return;
         }
 
-        _writer.WriteLine("Limit: (not set)");
+        return balance;
+    }
+
+    private static HashSet<int> GetCardIdsByCurrency(
+        IReadOnlyList<Card> cards,
+        Currency currency)
+    {
+        return cards
+            .Where(c => c.Currency == currency)
+            .Select(c => c.Id)
+            .ToHashSet();
+    }
+
+    private static Currency GetReportCurrency(IReadOnlyList<Card> cards)
+    {
+        return cards.FirstOrDefault(c => c.IsDefault)?.Currency
+            ?? cards.FirstOrDefault()?.Currency
+            ?? Currency.RUB;
+    }
+
+    private static void AddCategoryTotal(
+        Dictionary<string, decimal> categoryTotals,
+        Transaction transaction)
+    {
+        if (categoryTotals.TryGetValue(transaction.Category, out var previousAmount))
+        {
+            categoryTotals[transaction.Category] = previousAmount + transaction.Amount;
+        }
+        else
+        {
+            categoryTotals[transaction.Category] = transaction.Amount;
+        }
     }
 
     private void PrintLimitWithFloorPercent(decimal expense, decimal? limit, Currency currency)
     {
-        if (limit.HasValue)
+        if (TryPrintMissingLimit(limit))
         {
-            if (limit.Value <= 0)
-            {
-                _writer.WriteLine("Limit: (not set)");
-                return;
-            }
-
-            var percent = (int)Math.Floor((expense / limit.Value) * 100m);
-            _writer.WriteLine($"Limit: {FormatMoney(limit.Value, currency)} ({percent}%)");
             return;
         }
 
-        _writer.WriteLine("Limit: (not set)");
+        var percent = (int)Math.Floor((expense / limit!.Value) * 100m);
+            _writer.WriteLine($"Limit: {FormatMoney(limit.Value, currency)} ({percent}%)");
     }
 
     private void PrintLimitWithRoundPercent(decimal expense, decimal? limit, Currency currency)
     {
-        if (limit.HasValue)
+        if (TryPrintMissingLimit(limit))
         {
-            if (limit.Value <= 0)
-            {
-                _writer.WriteLine("Limit: (not set)");
-                return;
-            }
-
-            var percent = limit.Value == 0m 
-                ? 0 
-                : (int)Math.Round((expense / limit.Value) * 100m, MidpointRounding.AwayFromZero);
-            _writer.WriteLine($"Limit: {limit.Value:F2} {currency} ({percent}%)");
             return;
         }
 
-        _writer.WriteLine("Limit: (not set)");
+        var percent = limit!.Value == 0m 
+                ? 0 
+                : (int)Math.Round((expense / limit.Value) * 100m, MidpointRounding.AwayFromZero);
+            _writer.WriteLine($"Limit: {limit.Value:F2} {currency} ({percent}%)");
     }
 
     private Dictionary<string, decimal> RecalculateCategories(DateOnly date, Currency currency)
     {
         var cards = _cardRepository.GetAll();
-        var cardIds = cards
-            .Where(c => c.Currency == currency)
-            .Select(c => c.Id)
-            .ToHashSet();
+        var cardIds = GetCardIdsByCurrency(cards, currency);
 
         var categoryTotals = new Dictionary<string, decimal>(StringComparer.Ordinal);
 
@@ -201,21 +196,25 @@ public sealed class ReportPrinter
                 continue;
             }
 
-            if (categoryTotals.TryGetValue(transaction.Category, out var previousAmount))
-            {
-                categoryTotals[transaction.Category] = previousAmount + transaction.Amount;
-            }
-            else
-            {
-                categoryTotals[transaction.Category] = transaction.Amount;
-            }
+            AddCategoryTotal(categoryTotals, transaction);
         }
 
         return categoryTotals;
     }
 
-    public static string FormatMoney(decimal amount, Currency currency)
+    private static string FormatMoney(decimal amount, Currency currency)
     {
         return string.Create(CultureInfo.InvariantCulture, $"{amount:F2} {currency}");
+    }
+
+    private bool TryPrintMissingLimit(decimal? limit)
+    {
+        if (!limit.HasValue || limit.Value <= 0)
+        {
+            _writer.WriteLine("Limit: (not set)");
+            return true;
+        }
+
+        return false;
     }
 }

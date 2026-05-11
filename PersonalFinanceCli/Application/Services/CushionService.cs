@@ -8,6 +8,7 @@ public sealed class CushionService
 {
     public const string ToCushionCategoryTransfer="Transfer to cushion";
     public const string FromIncomeCategoryTransfer="Transfer from income";
+    private const string CushionCardName = "Financial cushion";
 
     private readonly ICardRepository _cardRepository;
 
@@ -19,7 +20,7 @@ public sealed class CushionService
     public Card? FindCushionByName()
     {
         var cards = _cardRepository.GetAll();
-        return cards.FirstOrDefault(c => c.Name == "Financial cushion");
+        return cards.FirstOrDefault(c => c.Name == CushionCardName);
     }
 
     public Card? FindCushionByContains()
@@ -42,7 +43,7 @@ public sealed class CushionService
         return _cardRepository.Add(
             new Card
             {
-                Name = "Financial cushion",
+                Name = CushionCardName,
                 Currency = currency,
                 InitialBalance = 0m,
                 IsDefault = false,
@@ -56,11 +57,6 @@ public sealed class CushionService
 
         if (incomeAmount < 10m)
         {
-            if (isCategorySalary)
-            {
-                return 1m;
-            }
-
             return 1m;
         }
         else
@@ -77,5 +73,23 @@ public sealed class CushionService
     public static decimal Floor2(decimal value)
     {
         return Math.Floor(value*100m)/100m;
+    }
+
+    public Card? FindFirstOrDefaultCushionCard()
+    {
+        var cards = _cardRepository.GetAll();
+        var cardByCushionFlag = cards.FirstOrDefault(c => c.IsCushion);
+        if (cardByCushionFlag != null)
+        {
+            return cardByCushionFlag;
+        }
+
+        var exactCushionCard = cards.FirstOrDefault(c => c.Name == CushionCardName);
+        if (exactCushionCard != null)
+        {
+            return exactCushionCard;
+        }
+
+        return cards.FirstOrDefault(c => c.Name.Contains("cushion"));
     }
 }

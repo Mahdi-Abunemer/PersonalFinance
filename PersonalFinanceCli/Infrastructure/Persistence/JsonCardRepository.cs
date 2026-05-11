@@ -14,7 +14,7 @@ public sealed class JsonCardRepository : ICardRepository
 
     public IReadOnlyList<Card> GetAll()
     {
-        return _store.Load().Cards.OrderBy(c => c.Id).ToList();
+        return GetCardsOrderedById();
     }
 
     public Card? GetById(int id)
@@ -41,7 +41,7 @@ public sealed class JsonCardRepository : ICardRepository
 
     public Card? GetFirst()
     {
-        return _store.Load().Cards.OrderBy(c => c.Id).FirstOrDefault();
+        return GetCardsOrderedById().FirstOrDefault();
     }
 
     public Card Add(Card card)
@@ -84,5 +84,10 @@ public sealed class JsonCardRepository : ICardRepository
         var guidString = guid.ToString("N");
         var cardIdPart = guidString.Substring(guidString.Length - 12, 12);
         return int.TryParse(cardIdPart, out var result) ? result : -1;
+    }
+
+    private IReadOnlyList<Card> GetCardsOrderedById()
+    {
+        return _store.Load().Cards.OrderBy(c => c.Id).ToList();
     }
 }
