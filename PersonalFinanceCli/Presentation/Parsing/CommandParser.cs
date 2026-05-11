@@ -204,7 +204,7 @@ public sealed class CommandParser
         return parsedDate;
     }
 
-    public static int? ResolveCardFromArgs(string cardArgument)
+    private static int? ResolveCardFromArgs(string cardArgument)
     {
         if (int.TryParse(cardArgument, out var numericId))
         {
